@@ -1,21 +1,18 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const Replicate = require('replicate');
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import Replicate from 'replicate';
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
 
-// Ruta de prueba
 app.get('/', (req, res) => {
   res.send('Servidor funcionando correctamente');
 });
 
-// Ruta para generar imagen
 app.post('/generate', async (req, res) => {
   try {
     const prompt = req.body.prompt;
@@ -34,20 +31,18 @@ app.post('/generate', async (req, res) => {
         input: {
           prompt: prompt,
           width: 768,
-          height: 768
-        }
+          height: 768,
+        },
       }
     );
 
     res.json({ image: output[0] });
-
   } catch (error) {
-    console.error('❌ Error en /generate:', error);
-    res.status(500).json({ error: error.message || 'Error interno' });
+    console.error('Error:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
-// Iniciar servidor
 app.listen(port, () => {
-  console.log(`Servidor funcionando en http://localhost:${port}`);
+  console.log(`Servidor corriendo en http://localhost:${port}`);
 });
