@@ -1,47 +1,53 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import Replicate from 'replicate';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const Replicate = require('replicate');
 
-dotenv.config();
 const app = express();
+const port = process.env.PORT || 3000;
 
-// Middleware
+// Middlewares
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// __dirname para módulos ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Servir archivos estáticos si fuera necesario
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Conexión a Replicate
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
+// Ruta de prueba
+app.get('/', (req, res) => {
+  res.send('Servidor funcionando correctamente');
 });
 
-// Ruta para generar imágenes
+// Ruta para generar imagen
 app.post('/generate', async (req, res) => {
-  const { prompt } = req.body;
   try {
+    const prompt = req.body.prompt;
+
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt requerido' });
+    }
+
+    const replicate = new Replicate({
+      auth: process.env.REPLICATE_API_TOKEN,
+    });
+
     const output = await replicate.run(
-      'stability-ai/sdxl:7587df305c41a8d2b0ce299f650d3e8b71a7d2b74c8f9c4dc2b1acfa51f3c3c7',
-      { input: { prompt } }
+      "stability-ai/sdxl:fd8b3cf01c02cb8eb871b6c3cc1bd6837c69c2dc3c3b5a0b4e3c380208089caa",
+      {
+        input: {
+          prompt: prompt,
+          width: 768,
+          height: 768
+        }
+      }
     );
 
-    return res.json({ image: output[0] });
+    res.json({ image: output[0] });
+
   } catch (error) {
-    console.error('Error generating image:', error);
-    return res.status(500).json({ error: 'Image generation failed' });
+    console.error('❌ Error en /generate:', error);
+    res.status(500).json({ error: error.message || 'Error interno' });
   }
 });
 
-// Puerto dinámico para Render
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor funcionando en puerto ${PORT}`);
+// Iniciar servidor
+app.listen(port, () => {
+  console.log(`Servidor funcionando en http://localhost:${port}`);
 });
