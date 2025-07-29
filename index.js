@@ -8,28 +8,23 @@ import { fileURLToPath } from "url";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
 // Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Ruta estática para servir la carpeta "public"
+// Rutas estáticas (sirve archivos del frontend si es necesario)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, "../public")));
 
-// Configuración de Replicate
+// Inicializa Replicate con tu token
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
-// Ruta de prueba
-app.get("/", (req, res) => {
-  res.send("Servidor funcionando correctamente");
-});
-
-// Ruta principal para generar imágenes
+// Endpoint para generar imágenes
 app.post("/generate", async (req, res) => {
   const { prompt } = req.body;
 
@@ -40,15 +35,9 @@ app.post("/generate", async (req, res) => {
   try {
     console.log(`🔍 Generando imagen para el prompt: ${prompt}`);
 
-    // Modelo usando alias (sin versión específica)
-    const output = await replicate.run("stability-ai/sdxl", {
-      input: {
-        prompt: prompt,
-        width: 768,
-        height: 768,
-        num_outputs: 1,
-        guidance_scale: 7.5,
-      },
+    // Usando alias general (siempre apunta a la versión estable más reciente)
+    const output = await replicate.run("stability-ai/stable-diffusion-3", {
+      input: { prompt },
     });
 
     if (!output || !output[0]) {
@@ -64,7 +53,7 @@ app.post("/generate", async (req, res) => {
   }
 });
 
-// Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`Servidor funcionando en http://localhost:${PORT}/novaai.html`);
+// Iniciar servidor
+app.listen(port, () => {
+  console.log(`Servidor funcionando en http://localhost:${port}/novaai.html`);
 });
