@@ -26,16 +26,24 @@ const replicate = new Replicate({
 
 // Endpoint para generar imágenes
 app.post("/generate", async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, negative_prompt } = req.body;
 
   if (!prompt || prompt.trim() === "") {
     return res.status(400).json({ error: "Prompt is required" });
   }
 
   try {
-    console.log(`🔍 Generando imagen para el prompt: ${prompt}`);
-    const output = await replicate.run("stability-ai/stable-diffusion-3", {
-      input: { prompt },
+    const output = await replicate.run("stability-ai/sdxl", {
+      input: {
+        prompt: prompt,
+        negative_prompt: negative_prompt,
+        width: 512,
+        height: 512,
+        guidance_scale: 7.5,
+        num_outputs: 1,
+        scheduler: "K_EULER",
+        refine: "expert_ensemble_refiner"
+      }
     });
 
     if (!output || !output[0]) {
