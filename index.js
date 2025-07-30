@@ -26,32 +26,38 @@ const replicate = new Replicate({
 
 // Endpoint para generar imágenes
 app.post("/generate", async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, negative_prompt } = req.body;
 
   if (!prompt || prompt.trim() === "") {
     return res.status(400).json({ error: "Prompt is required" });
   }
 
   try {
-    console.log(`🔍 Generando imagen para el prompt: ${prompt}`);
-
-    // Usando alias general (siempre apunta a la versión estable más reciente)
-    const output = await replicate.run("stability-ai/stable-diffusion-3", {
-      input: { prompt },
+    const output = await replicate.run("stability-ai/sdxl", {
+      input: {
+        prompt: prompt,
+        negative_prompt: negative_prompt,
+        width: 512,
+        height: 512,
+        guidance_scale: 7.5,
+        num_outputs: 1,
+        scheduler: "K_EULER",
+        refine: "expert_ensemble_refiner"
+      }
     });
 
     if (!output || !output[0]) {
-      return res.status(500).json({ error: "No se recibió ninguna imagen" });
+      return res.status(500).json({ error: "No image received" });
     }
 
     res.json({ image: output[0] });
+
   } catch (error) {
-    console.error("❌ Error al generar la imagen:", error);
-    res
-      .status(500)
-      .json({ error: "Ocurrió un error al generar la imagen", details: error.message });
+    console.error("Error generating image:", error);
+    res.status(500).json({ error: "Failed to generate image" });
   }
 });
+
 
 // Iniciar servidor
 app.listen(port, () => {
