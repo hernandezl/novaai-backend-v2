@@ -16,3 +16,8 @@
   }
 }
 
+{
+  "prompt": "lion head, vector illustration, thick outlines, flat contrast",
+  "negative_prompt": "realistic, 3d, photo, blurry, shadows, background"
+}
+
