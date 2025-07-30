@@ -7,6 +7,9 @@
   "scripts": {
     "start": "node index.js"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
@@ -15,9 +18,3 @@
     "replicate": "^0.34.1"
   }
 }
-
-{
-  "prompt": "lion head, vector illustration, thick outlines, flat contrast",
-  "negative_prompt": "realistic, 3d, photo, blurry, shadows, background"
-}
-
