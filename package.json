@@ -1,14 +1,11 @@
+
 {
-  "name": "novaai-backend-v2",
+  "name": "novaai-backend",
   "version": "1.0.0",
-  "description": "Backend para generación de imágenes con Replicate (SDXL).",
   "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
-  },
-  "engines": {
-    "node": "18.x"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
