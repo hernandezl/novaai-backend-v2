@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>NovaAI System</title>
   <style>
-    /* Tu nuevo estilo actualizado va aquí (ya está integrado) */
     body {
       margin: 0;
       background-color: #1c1c1c;
       font-family: Arial, sans-serif;
       color: white;
     }
+
     header {
       background: linear-gradient(to right, orange, red);
       padding: 15px;
@@ -21,15 +21,27 @@
       font-size: 1.5rem;
       font-weight: bold;
     }
+
+    header span, header a {
+      margin: 0 10px;
+      color: white;
+      text-decoration: none;
+      font-size: 1rem;
+    }
+
     .container {
       display: flex;
       height: calc(100vh - 100px);
+      position: relative;
     }
+
     .sidebar {
       width: 250px;
       background-color: #2a2a2a;
       padding: 10px;
+      box-sizing: border-box;
     }
+
     .sidebar button {
       display: block;
       width: 100%;
@@ -41,16 +53,19 @@
       cursor: pointer;
       font-size: 1rem;
       text-align: left;
-      transition: all 0.2s;
+      transition: transform 0.1s;
     }
+
     .sidebar button:active {
       transform: translateY(2px);
-      background-color: #666;
+      background-color: #444;
     }
+
     .sub-options {
       display: none;
-      margin-left: 10px;
+      margin-left: 15px;
     }
+
     .main {
       flex-grow: 1;
       padding: 10px;
@@ -59,6 +74,7 @@
       align-items: center;
       justify-content: center;
     }
+
     .output-area {
       background-color: black;
       width: 95%;
@@ -69,12 +85,14 @@
       justify-content: center;
       margin-bottom: 20px;
     }
+
     .prompt-area {
       width: 95%;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
+
     .prompt-area input {
       width: 100%;
       padding: 12px;
@@ -82,6 +100,7 @@
       border: none;
       border-radius: 4px;
     }
+
     .generate-btn {
       margin-left: 10px;
       padding: 14px;
@@ -89,27 +108,73 @@
       border-radius: 50%;
       border: 4px solid red;
       cursor: pointer;
+      transition: border-color 0.3s;
     }
+
     .generate-btn:hover {
       border-color: limegreen;
     }
+
     #generatedPanel {
-      display: none;
       position: fixed;
       top: 100px;
-      right: 0;
-      width: 250px;
-      max-height: 80vh;
+      right: -300px;
+      width: 300px;
+      height: calc(100% - 100px);
+      background: #1f1f1f;
+      border-left: 3px solid limegreen;
       overflow-y: auto;
-      background: #111;
-      border-left: 4px solid limegreen;
+      transition: right 0.4s ease-in-out;
       padding: 10px;
       z-index: 999;
     }
-    #generatedPanel img {
-      width: 100%;
+
+    #generatedPanel.open {
+      right: 0;
+    }
+
+    .thumbnail-container {
+      background: #333;
       margin-bottom: 10px;
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .thumbnail-container img {
+      width: 4cm;
+      height: 4cm;
+      object-fit: cover;
+      border: 2px solid #555;
+      margin-bottom: 5px;
+    }
+
+    .thumbnail-container button {
+      margin: 2px 0;
+      width: 80%;
+      padding: 5px;
+      font-size: 0.8rem;
       cursor: pointer;
+      border: none;
+      background: #666;
+      color: white;
+      transition: background 0.2s;
+    }
+
+    .thumbnail-container button:hover {
+      background: #888;
+    }
+
+    #upload {
+      margin: 10px 0;
+      color: white;
+    }
+
+    #toggleImagesBtn {
+      background-color: #f9a825;
+      color: black;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -119,30 +184,36 @@
     <span>NovaAI System</span>
     <a href="home.html">Home</a>
   </header>
+
   <div class="container">
     <div class="sidebar">
       <button onclick="toggleOption('material')">Material</button>
       <div class="sub-options" id="material">
-        <button>Wood</button>
-        <button>Acrylic</button>
+        <button onclick="collapseOptions()">Wood</button>
+        <button onclick="collapseOptions()">Acrylic</button>
       </div>
+
       <button onclick="toggleOption('fonts')">Fonts</button>
       <div class="sub-options" id="fonts">
-        <button>Sans</button>
-        <button>Serif</button>
+        <button onclick="collapseOptions()">Sans</button>
+        <button onclick="collapseOptions()">Serif</button>
       </div>
+
       <button onclick="toggleOption('layers')">Layers</button>
       <div class="sub-options" id="layers">
-        <button>1 Layer</button>
-        <button>2 Layers</button>
+        <button onclick="collapseOptions()">1 Layer</button>
+        <button onclick="collapseOptions()">2 Layers</button>
       </div>
+
       <button onclick="toggleOption('size')">Size</button>
       <div class="sub-options" id="size">
-        <button>512x512</button>
-        <button>1024x1024</button>
+        <button onclick="collapseOptions()">512x512</button>
+        <button onclick="collapseOptions()">1024x1024</button>
       </div>
-      <button onclick="toggleImagesPanel()">🖼️ My Generated Images</button>
+
+      <button id="toggleImagesBtn" onclick="toggleImagesPanel()">🖼️ My Generated Images</button>
     </div>
+
     <div class="main">
       <div class="output-area">
         <img id="generatedImage" src="" alt="Generated Output" style="max-width:100%; max-height:100%;" />
@@ -156,19 +227,33 @@
       <input type="file" id="upload" accept="image/*">
     </div>
   </div>
+
   <div id="generatedPanel"></div>
+
   <script>
     function toggleOption(id) {
       document.querySelectorAll('.sub-options').forEach(opt => {
         if (opt.id !== id) opt.style.display = 'none';
       });
-      const el = document.getElementById(id);
-      el.style.display = el.style.display === 'block' ? 'none' : 'block';
+      const target = document.getElementById(id);
+      target.style.display = target.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function collapseOptions() {
+      document.querySelectorAll('.sub-options').forEach(opt => opt.style.display = 'none');
     }
 
     function toggleImagesPanel() {
-      const panel = document.getElementById('generatedPanel');
-      panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+      document.getElementById('generatedPanel').classList.toggle('open');
+    }
+
+    function enlargeImage(src) {
+      const newWindow = window.open("");
+      newWindow.document.write(`<img src="${src}" style="width:100%;">`);
+    }
+
+    function goToOrder() {
+      window.location.href = "orders.html";
     }
 
     function generateImage() {
@@ -181,18 +266,35 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
       })
-        .then(res => res.json())
-        .then(data => {
-          image.src = data.image;
-          const img = document.createElement('img');
-          img.src = data.image;
-          if (panel.children.length >= 15) panel.removeChild(panel.firstChild);
-          panel.appendChild(img);
-        })
-        .catch(err => {
-          console.error('Error:', err);
-          alert('Image generation failed');
-        });
+      .then(res => res.json())
+      .then(data => {
+        image.src = data.image;
+
+        const container = document.createElement('div');
+        container.classList.add('thumbnail-container');
+
+        const thumb = document.createElement('img');
+        thumb.src = data.image;
+
+        const enlargeBtn = document.createElement('button');
+        enlargeBtn.innerText = "Enlarge";
+        enlargeBtn.onclick = () => enlargeImage(data.image);
+
+        const buyBtn = document.createElement('button');
+        buyBtn.innerText = "Buy";
+        buyBtn.onclick = goToOrder;
+
+        container.appendChild(thumb);
+        container.appendChild(enlargeBtn);
+        container.appendChild(buyBtn);
+
+        if (panel.children.length >= 15) panel.removeChild(panel.firstChild);
+        panel.appendChild(container);
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        alert('Image generation failed');
+      });
     }
   </script>
 </body>
