@@ -19,26 +19,20 @@ const replicate = new Replicate({
 });
 
 app.post('/generate', async (req, res) => {
-  const { prompt, image } = req.body;
+  const { prompt, baseImage } = req.body;
   try {
-    let input = { prompt };
-    if (image) {
-      input.image = image; // enviar imagen base si existe
-    }
-
     const output = await replicate.run(
-      "stability-ai/stable-diffusion-3",
-      { input }
+      "stability-ai/stable-diffusion-3", // Modelo que ya estaba funcionando
+      {
+        input: {
+          prompt: prompt || "Generate the same image",
+          image: baseImage || undefined
+        }
+      }
     );
-
-    // Si no se hace ningún cambio en el texto y hay imagen, devolver esa imagen
-    if ((!prompt || prompt.trim() === "") && image) {
-      return res.json({ image });
-    }
-
     res.json({ image: output[0] });
   } catch (error) {
-    console.error(error);
+    console.error("Error generating image:", error);
     res.status(500).json({ error: "Image generation failed" });
   }
 });
