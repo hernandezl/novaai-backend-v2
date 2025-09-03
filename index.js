@@ -1,6 +1,6 @@
 // index.js — NovaAI Backend (Render-ready)
 // Runtime: Node 18+ | ESM
-import 'dotenv/config.js';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
