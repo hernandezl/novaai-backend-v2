@@ -1,193 +1,187 @@
-// index.js
-// NovaAI Backend (Render-ready)
-// - Owner/Vector: Replicate (recraft-ai/recraft-20b-svg) => SVG
-// - Customer/Realistic: OpenAI (gpt-image-1)            => PNG URL
+// index.js — NovaAI Backend v2 (Recraft + OpenAI con fallback Flux)
+// Requisitos ENV en Render:
+// - REPLICATE_API_TOKEN  (obligatoria)
+// - OPENAI_API_KEY       (opcional; si falta o falla, usa Flux de fallback)
+// - PORT                 (Render lo inyecta)
+// Opcional:
+// - REPLICATE_VECTOR_MODEL="recraft-ai/recraft-20b-svg"
+// - REPLICATE_RASTER_MODEL="black-forest-labs/flux-schnell"
 
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import Replicate from "replicate";
+import "dotenv/config";
 import fetch from "node-fetch";
+import Replicate from "replicate";
 
-dotenv.config();
-
+// ────────────────────────────────────────────────────────────
+// Config
+// ────────────────────────────────────────────────────────────
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "20mb" })); // soporta imagen base64 opcional
-app.set("trust proxy", true);
+app.use(express.json({ limit: "10mb" }));
 
-// ====== Config ======
 const PORT = process.env.PORT || 3000;
+const VECTOR_MODEL = process.env.REPLICATE_VECTOR_MODEL || "recraft-ai/recraft-20b-svg";
+const FLUX_MODEL   = process.env.REPLICATE_RASTER_MODEL  || "black-forest-labs/flux-schnell";
 
-// Modelos
-const VECTOR_MODEL = "recraft-ai/recraft-20b-svg";
-const RASTER_MODEL = "openai:gpt-image-1"; // etiqueta interna (usamos REST)
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+});
 
-const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || "";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+function log(...args){ console.log("[api]", ...args); }
+function logErr(...args){ console.error("[api]", ...args); }
 
-// SDK Replicate
-const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
-
-// Util: normaliza cualquier respuesta en {owner_image, customer_image}
-function normalizeAny(data) {
-  const out = { owner_image: null, customer_image: null };
-  try {
-    if (!data) return out;
-
-    const deepFindFirstImage = (v) => {
-      if (!v) return null;
-      if (typeof v === "string") {
-        if (/^data:image\//.test(v)) return v;
-        const m = v.match(/https?:\/\/[^\s"']+\.(?:png|jpg|jpeg|webp|svg)/i);
-        if (m) return m[0];
-      }
-      if (Array.isArray(v)) {
-        for (const x of v) {
-          const r = deepFindFirstImage(x);
-          if (r) return r;
-        }
-      }
-      if (typeof v === "object") {
-        for (const k of Object.keys(v)) {
-          const r = deepFindFirstImage(v[k]);
-          if (r) return r;
-        }
-      }
-      return null;
-    };
-
-    out.owner_image =
-      data.owner_image || data.vector_image || deepFindFirstImage(data.owner);
-    out.customer_image =
-      data.customer_image ||
-      data.image_url ||
-      deepFindFirstImage(data.customer) ||
-      deepFindFirstImage(data);
-
-    if (!out.owner_image && out.customer_image)
-      out.owner_image = out.customer_image;
-    if (!out.customer_image && out.owner_image)
-      out.customer_image = out.owner_image;
-  } catch (_) {}
-  return out;
-}
-
-// ====== Health ======
-app.get("/health", (_req, res) =>
+// ────────────────────────────────────────────────────────────
+app.get("/", (_req,res)=>res.send("NovaAI Backend OK"));
+// Health
+app.get("/health", (_req,res)=> {
   res.json({
     ok: true,
     service: "NovaAI Node",
     port: Number(PORT),
     base_url: null,
     vector_model: VECTOR_MODEL,
-    raster_model: RASTER_MODEL,
-  })
-);
+    raster_model: process.env.OPENAI_API_KEY ? "openai:gpt-image-1" : `replicate:${FLUX_MODEL}`,
+  });
+});
 
-// ====== Generadores ======
-async function generateVector({ prompt, negative, params, image_base64 }) {
-  // Entradas típicas para recraft SVG:
-  // - prompt
-  // - negative_prompt
-  // - guidance_scale
-  // - num_inference_steps
-  // - output_format: "svg"
-  // - image (opcional para img2img) ← este modelo acepta referencia
+// ────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────
+function asDataURLIfNeeded(b64){
+  if(!b64) return undefined;
+  if (b64.startsWith("data:")) return b64;
+  return `data:image/png;base64,${b64}`;
+}
+
+function clampInt(v, min, max, def){
+  const n = Number.isFinite(+v) ? Math.round(+v) : def;
+  return Math.max(min, Math.min(max, n));
+}
+
+// Normaliza salida para el front
+function packResponse({kind, image}){
+  if(kind==="vector"){
+    return { owner_image: image, customer_image: image };
+  }
+  return { owner_image: image, customer_image: image };
+}
+
+// ────────────────────────────────────────────────────────────
+// Generadores
+// ────────────────────────────────────────────────────────────
+
+// 1) VECTOR (SVG) - Recraft
+async function generateVector({ prompt, negative, params, image_base64 }){
+  const width  = clampInt(params?.width,  256, 2048, 1024);
+  const height = clampInt(params?.height, 256, 2048, 1024);
+
   const input = {
+    // Prompt “vector style” se añade ya en tu front; aquí usamos tal cual
     prompt,
-    negative_prompt: negative || "",
-    output_format: "svg",
-    // Mapeo suave de parámetros
-    guidance_scale: params?.guidance ?? 7.5,
-    num_inference_steps: params?.steps ?? 40,
+    negative_prompt: negative || undefined,
+    width,
+    height,
+    // El modelo de Recraft ignora steps/guidance tradicionales;
+    // se mantienen por compatibilidad, no afectan si el backend del modelo no los usa.
   };
 
-  // Si llega referencia, la mandamos. Debe ser dataURL base64 "data:image/..;base64,...."
-  if (image_base64 && !image_base64.startsWith("data:")) {
-    // Si llega solo el bloque base64 (sin prefijo data:), lo convertimos a dataURL PNG
-    input.image = `data:image/png;base64,${image_base64}`;
-  } else if (image_base64) {
-    input.image = image_base64;
+  if (image_base64) {
+    input.image = asDataURLIfNeeded(image_base64);
   }
 
+  log("Recraft run", { model: VECTOR_MODEL, width, height });
   const out = await replicate.run(VECTOR_MODEL, { input });
-  // Recraft normalmente devuelve un único string (URL) o un array con 1
-  const svgUrl = Array.isArray(out) ? out[0] : out;
-  return { owner_image: svgUrl };
+  // Recraft devuelve URL (svg/png). Normalizamos:
+  const url = Array.isArray(out) ? out[0] : (typeof out === "string" ? out : out?.output || out?.image || null);
+  if (!url) throw new Error("Recraft no devolvió URL");
+  return { kind: "vector", image: url };
 }
 
-async function generateRealistic({ prompt /*, image_base64*/ }) {
-  // OpenAI Images - REST directo para evitar agregar SDK como dependencia
-  // Importante: NO usar response_format (causa 400).
-  // Por ahora generamos sólo desde prompt (sin edits). Variations/edits requieren multipart.
-  const resp = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-image-1",
-      prompt,
-      size: "1024x1024",
-    }),
-  });
-
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`OpenAI gen ${resp.status}: ${txt}`);
+// 2) REALISTA - OpenAI con fallback a Flux
+async function generateRealistic({ prompt, negative, params, image_base64 }){
+  // Primero intentamos OpenAI si hay API key
+  if (process.env.OPENAI_API_KEY) {
+    try{
+      // gpt-image-1 (Images API endpoint)
+      const body = {
+        model: "gpt-image-1",
+        prompt,
+        size: "1024x1024",
+      };
+      // Si quieres soporte img2img con OpenAI: enviar "image" con URL pública;
+      // para dataURL el endpoint actual no acepta binario inline. Para simplicidad, omitimos.
+      const resp = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const text = await resp.text();
+      if(!resp.ok) {
+        // Errores comunes: 403 org verification, 429 rate/limit, 400 inputs… registramos y saltamos al fallback
+        logErr("[OpenAI gen]", resp.status, text);
+        throw new Error(`OpenAI gen ${resp.status}: ${text}`);
+      }
+      const data = JSON.parse(text);
+      const url = data?.data?.[0]?.url || null;
+      if (url) return { kind:"real", image:url };
+      throw new Error("OpenAI: respuesta sin URL");
+    }catch(e){
+      logErr("[OpenAI->Flux fallback]", e?.message || e);
+      // continúa a Flux
     }
-
-  const data = await resp.json();
-  const url =
-    (data?.data && data.data[0] && data.data[0].url) ? data.data[0].url : null;
-  if (!url) throw new Error("OpenAI: no image url in response");
-  return { customer_image: url };
-}
-
-// ====== API: /api/generate ======
-/**
- * Body esperado (como lo manda tu novaai.html):
- * {
- *   target: 'owner' | 'customer',
- *   prompt: string,
- *   negative: string,
- *   params: { width, height, guidance, steps, strength },
- *   image_base64?: string (puede venir con o sin prefijo data:)
- * }
- */
-app.post("/api/generate", async (req, res) => {
-  const { target, prompt, negative, params, image_base64 } = req.body || {};
-  if (!prompt || !target) {
-    return res.status(400).json({ error: "Missing 'prompt' or 'target'" });
   }
-  try {
-    let result;
-    if (target === "owner") {
-      if (!REPLICATE_API_TOKEN)
-        throw new Error("Missing REPLICATE_API_TOKEN in env");
-      result = await generateVector({ prompt, negative, params, image_base64 });
-    } else if (target === "customer") {
-      if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY in env");
-      // Nota: de momento ignoramos image_base64 aquí (edits/variations requieren multipart)
-      result = await generateRealistic({ prompt });
-    } else {
-      throw new Error("Unknown target (use 'owner' or 'customer')");
-    }
 
-    // Normaliza y responde (por si en el futuro mezclamos salidas)
-    const out = normalizeAny(result);
-    if (!out.owner_image && !out.customer_image)
-      return res.status(500).json({ error: "No image in response" });
-    res.json(out);
-  } catch (err) {
-    console.error("[/api/generate] Error:", err?.message || err);
-    res.status(400).json({ error: String(err?.message || err) });
+  // Fallback: Flux (Replicate)
+  const width  = clampInt(params?.width,  256, 2048, 1024);
+  const height = clampInt(params?.height, 256, 2048, 1024);
+  const steps = clampInt(params?.steps,  4,  50, 12);
+  const guidance = Number.isFinite(+params?.guidance) ? +params.guidance : 1.5;
+
+  const input = {
+    prompt,
+    width,
+    height,
+    guidance,
+    num_inference_steps: steps,
+  };
+  if (negative) input.negative_prompt = negative;
+  if (image_base64) input.image = asDataURLIfNeeded(image_base64); // Flux acepta dataURL
+
+  log("Flux run", { model: FLUX_MODEL, width, height, steps, guidance });
+  const out = await replicate.run(FLUX_MODEL, { input });
+  const url = Array.isArray(out) ? out[0] : (typeof out === "string" ? out : out?.output || out?.image || null);
+  if (!url) throw new Error("Flux no devolvió URL");
+  return { kind:"real", image:url };
+}
+
+// ────────────────────────────────────────────────────────────
+// API
+// ────────────────────────────────────────────────────────────
+app.post("/api/generate", async (req,res)=>{
+  const { target="owner", prompt="", negative="", params={}, image_base64 } = req.body || {};
+  try{
+    if(!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "Missing prompt" });
+    }
+    let result;
+    if (target === "owner" || target === "vector") {
+      result = await generateVector({ prompt, negative, params, image_base64 });
+    } else {
+      result = await generateRealistic({ prompt, negative, params, image_base64 });
+    }
+    const packed = packResponse(result);
+    res.json(packed);
+  }catch(e){
+    logErr("[/api/generate] Error:", e?.message || e);
+    res.status(500).json({ error: e?.message || String(e) });
   }
 });
 
-// ====== Start ======
-app.listen(PORT, () => {
-  console.log(`Backend listo en http://localhost:${PORT}`);
+// ────────────────────────────────────────────────────────────
+app.listen(PORT, ()=> {
+  log(`Backend listo en http://localhost:${PORT}`);
 });
