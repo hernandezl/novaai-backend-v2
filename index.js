@@ -7,12 +7,10 @@ import fetch from "node-fetch";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors()); // CORS abierto para tu estático
 app.use(express.json({ limit: "25mb" }));
 
 const PORT = process.env.PORT || 3000;
-
-// === Helpers ================================================================
 
 function b64ToDataUrl(b64, mime = "image/png") {
   if (!b64) return null;
@@ -20,13 +18,9 @@ function b64ToDataUrl(b64, mime = "image/png") {
   return `data:${mime};base64,${b64}`;
 }
 
-// OpenAI realistic image (tries to use ref; if not supported, caller will fallback)
-async function openaiGenerate({ prompt, ref, size = "1024x1024" }) {
+async function openaiGenerate({ prompt, size = "1024x1024" }) {
   if (!process.env.OPENAI_API_KEY) return null;
   try {
-    // NOTE: OpenAI image generations endpoint is JSON; image-to-image needs multipart.
-    // We try the simple generations call; if you later switch to edits with multipart,
-    // plug it here. Frontend will preserve the reference if provider refuses it.
     const body = { model: "gpt-image-1", prompt, size };
     const r = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
@@ -41,12 +35,11 @@ async function openaiGenerate({ prompt, ref, size = "1024x1024" }) {
     const b64 = j?.data?.[0]?.b64_json;
     return b64ToDataUrl(b64, "image/png");
   } catch (e) {
-    console.warn("[openai] fail ⇒ fallback to Flux:", e?.message || e);
+    console.warn("[openai] fail ⇒ fallback Flux:", e?.message || e);
     return null;
   }
 }
 
-// Replicate: FLUX (fallback realistic)
 async function fluxSchnell({ prompt, steps = 4 }) {
   if (!process.env.REPLICATE_API_TOKEN) return null;
   try {
@@ -59,16 +52,12 @@ async function fluxSchnell({ prompt, steps = 4 }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          input: {
-            prompt,
-            num_inference_steps: Math.min(Math.max(1, steps), 4),
-          },
+          input: { prompt, num_inference_steps: Math.min(Math.max(1, steps), 4) },
         }),
       }
     );
     if (!r.ok) throw new Error(`flux ${r.status}`);
     const j = await r.json();
-    // poll
     let url = j.urls.get;
     for (let i = 0; i < 24; i++) {
       const rr = await fetch(url, {
@@ -89,7 +78,6 @@ async function fluxSchnell({ prompt, steps = 4 }) {
   }
 }
 
-// Replicate: Recraft vector SVG (owner)
 async function recraftSvg({ prompt }) {
   if (!process.env.REPLICATE_API_TOKEN) return null;
   try {
@@ -102,17 +90,12 @@ async function recraftSvg({ prompt }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          input: {
-            prompt,
-            // keep within limits to avoid 422
-            num_inference_steps: 4,
-          },
+          input: { prompt, num_inference_steps: 4 },
         }),
       }
     );
     if (!r.ok) throw new Error(`recraft ${r.status}`);
     const j = await r.json();
-    // poll
     let url = j.urls.get;
     for (let i = 0; i < 24; i++) {
       const rr = await fetch(url, {
@@ -120,7 +103,6 @@ async function recraftSvg({ prompt }) {
       });
       const jj = await rr.json();
       if (jj.status === "succeeded") {
-        // recraft returns an array of assets; prefer SVG
         const out = Array.isArray(jj.output) ? jj.output[0] : jj.output;
         return out || null;
       }
@@ -135,19 +117,17 @@ async function recraftSvg({ prompt }) {
 }
 
 async function generatePair({ prompt, ref, meta }) {
-  // Owner (vector) – Recraft; no image-to-image, así que guiamos por prompt.
-  const ownerPrompt = ref
-    ? `${prompt || ""}\nStyle: clean, flat, solid colors, simplified shapes (SVG).`
-    : `${prompt}\nStyle: clean, flat, solid colors, simplified shapes (SVG).`;
+  const ownerPrompt =
+    `${prompt || ""}\nStyle: clean, flat, thick outline, solid bright colors, simplified shapes (SVG).`
+      .trim();
 
-  // Customer (realistic) – OpenAI → fallback FLUX
   const custPrompt = ref
     ? `${prompt}\nKeep the base composition consistent with the uploaded reference image.`
     : prompt;
 
   const [ownerUrl, openaiUrl] = await Promise.all([
     recraftSvg({ prompt: ownerPrompt }),
-    openaiGenerate({ prompt: custPrompt, ref }),
+    openaiGenerate({ prompt: custPrompt }),
   ]);
 
   const customerUrl = openaiUrl || (await fluxSchnell({ prompt: custPrompt }));
@@ -160,8 +140,6 @@ async function generatePair({ prompt, ref, meta }) {
     base_from: meta?.source || "ai",
   };
 }
-
-// === Routes =================================================================
 
 app.get("/health", (_req, res) =>
   res.json({
@@ -176,9 +154,7 @@ app.get("/health", (_req, res) =>
 
 app.post("/api/generate", async (req, res) => {
   try {
-    const { prompt = "", ref = null, meta = null, mode = "pair" } = req.body || {};
-
-    // No prompt + reference ⇒ return the reference as-is (no cost)
+    const { prompt = "", ref = null, meta = null } = req.body || {};
     if (!prompt && ref) {
       return res.json({
         ok: true,
