@@ -1,301 +1,266 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NovaAI System</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NeguNova · NovaAI</title>
   <style>
-    body {
-      margin: 0;
-      background-color: #1c1c1c;
-      font-family: Arial, sans-serif;
-      color: white;
+    :root { color-scheme: dark; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+           background:#0e0e12; color:#e7e7ee; }
+    header { padding:16px 20px; border-bottom:1px solid #22232b; }
+    main { display:grid; grid-template-columns: 360px 1fr; gap:20px; padding:20px; }
+    .card { background:#121319; border:1px solid #22232b; border-radius:14px; padding:16px; }
+    .row { display:flex; gap:12px; align-items:center; }
+    .col { display:flex; flex-direction:column; gap:10px; }
+    label { font-size:12px; opacity:.8; margin-bottom:4px; }
+    input[type="text"], textarea {
+      width:100%; background:#0b0c11; color:#e7e7ee; border:1px solid #2a2b35;
+      border-radius:10px; padding:10px 12px; outline:none;
     }
-
-    header {
-      background: linear-gradient(to right, orange, red);
-      padding: 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 1.5rem;
-      font-weight: bold;
+    textarea { min-height:120px; resize:vertical; }
+    button {
+      background:#ff7a18; color:#0b0c11; border:none; padding:10px 14px; border-radius:10px;
+      font-weight:700; cursor:pointer;
     }
-
-    header span, header a {
-      margin: 0 10px;
-      color: white;
-      text-decoration: none;
-      font-size: 1rem;
+    button.secondary { background:#1f2030; color:#d7d7e0; border:1px solid #2a2b35; }
+    button.link { background:transparent; color:#9fb7ff; border:none; padding:0; }
+    button[disabled] { opacity:.6; cursor:not-allowed; }
+    .is-loading { position:relative; }
+    .is-loading::after{
+      content:""; position:absolute; right:12px; top:50%; width:14px; height:14px;
+      margin-top:-7px; border:2px solid #0000; border-top-color:#0b0c11; border-left-color:#0b0c11;
+      border-radius:50%; animation:spin .7s linear infinite;
     }
-
-    .container {
-      display: flex;
-      height: calc(100vh - 100px);
-      position: relative;
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .previews { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    .preview {
+      background:#0b0c11; border:1px solid #2a2b35; border-radius:12px; min-height:340px;
+      display:flex; align-items:center; justify-content:center; overflow:hidden;
     }
-
-    .sidebar {
-      width: 250px;
-      background-color: #2a2a2a;
-      padding: 10px;
-      box-sizing: border-box;
-    }
-
-    .sidebar button {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      background-color: #3a3a3a;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-size: 1rem;
-      text-align: left;
-      transition: transform 0.1s;
-    }
-
-    .sidebar button:active {
-      transform: translateY(2px);
-      background-color: #444;
-    }
-
-    .sub-options {
-      display: none;
-      margin-left: 15px;
-    }
-
-    .main {
-      flex-grow: 1;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .output-area {
-      background-color: black;
-      width: 95%;
-      height: 65%;
-      border: 2px solid #333;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-
-    .prompt-area {
-      width: 95%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .prompt-area input {
-      width: 100%;
-      padding: 12px;
-      font-size: 1rem;
-      border: none;
-      border-radius: 4px;
-    }
-
-    .generate-btn {
-      margin-left: 10px;
-      padding: 14px;
-      background: linear-gradient(to bottom right, #aaa, #444);
-      border-radius: 50%;
-      border: 4px solid red;
-      cursor: pointer;
-      transition: border-color 0.3s;
-    }
-
-    .generate-btn:hover {
-      border-color: limegreen;
-    }
-
-    #generatedPanel {
-      position: fixed;
-      top: 100px;
-      right: -300px;
-      width: 300px;
-      height: calc(100% - 100px);
-      background: #1f1f1f;
-      border-left: 3px solid limegreen;
-      overflow-y: auto;
-      transition: right 0.4s ease-in-out;
-      padding: 10px;
-      z-index: 999;
-    }
-
-    #generatedPanel.open {
-      right: 0;
-    }
-
-    .thumbnail-container {
-      background: #333;
-      margin-bottom: 10px;
-      padding: 5px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .thumbnail-container img {
-      width: 4cm;
-      height: 4cm;
-      object-fit: cover;
-      border: 2px solid #555;
-      margin-bottom: 5px;
-    }
-
-    .thumbnail-container button {
-      margin: 2px 0;
-      width: 80%;
-      padding: 5px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      border: none;
-      background: #666;
-      color: white;
-      transition: background 0.2s;
-    }
-
-    .thumbnail-container button:hover {
-      background: #888;
-    }
-
-    #upload {
-      margin: 10px 0;
-      color: white;
-    }
-
-    #toggleImagesBtn {
-      background-color: #f9a825;
-      color: black;
-      font-weight: bold;
-    }
+    .preview object, .preview img { width:100%; height:100%; object-fit:contain; }
+    .hint { font-size:12px; opacity:.75; }
+    .thumb { max-width:100%; border:1px solid #2a2b35; border-radius:10px; }
   </style>
 </head>
 <body>
   <header>
-    <span>NeguNova</span>
-    <span>NovaAI System</span>
-    <a href="home.html">Home</a>
+    <h1>NovaAI</h1>
   </header>
 
-  <div class="container">
-    <div class="sidebar">
-      <button onclick="toggleOption('material')">Material</button>
-      <div class="sub-options" id="material">
-        <button onclick="collapseOptions()">Wood</button>
-        <button onclick="collapseOptions()">Acrylic</button>
+  <main>
+    <!-- ===== Sidebar: Inputs ===== -->
+    <section class="card col" style="height:fit-content">
+      <div class="col">
+        <label for="prompt">Prompt</label>
+        <textarea id="prompt" placeholder="Describe aquí (ej: ‘diseña una lámpara LED acrílica con líneas geométricas’)."></textarea>
       </div>
 
-      <button onclick="toggleOption('fonts')">Fonts</button>
-      <div class="sub-options" id="fonts">
-        <button onclick="collapseOptions()">Sans</button>
-        <button onclick="collapseOptions()">Serif</button>
+      <div class="row" style="gap:8px; flex-wrap:wrap">
+        <button id="btn-generate-both">Generate (Owner + Customer)</button>
+        <button id="btn-upload" class="secondary" type="button">Upload reference</button>
+        <input id="file-input" type="file" accept="image/*" style="display:none" />
+        <button id="btn-products" class="secondary" type="button">Pull from Products</button>
       </div>
 
-      <button onclick="toggleOption('layers')">Layers</button>
-      <div class="sub-options" id="layers">
-        <button onclick="collapseOptions()">1 Layer</button>
-        <button onclick="collapseOptions()">2 Layers</button>
+      <div id="ref-wrap" class="col" style="display:none">
+        <label>Reference loaded</label>
+        <img id="ref-thumb" class="thumb" alt="reference preview" />
+        <span class="hint">Se enviará como <code>image_base64</code> al backend.</span>
       </div>
 
-      <button onclick="toggleOption('size')">Size</button>
-      <div class="sub-options" id="size">
-        <button onclick="collapseOptions()">512x512</button>
-        <button onclick="collapseOptions()">1024x1024</button>
-      </div>
+      <p id="status" class="hint"></p>
+    </section>
 
-      <button id="toggleImagesBtn" onclick="toggleImagesPanel()">🖼️ My Generated Images</button>
-    </div>
-
-    <div class="main">
-      <div class="output-area">
-        <img id="generatedImage" src="" alt="Generated Output" style="max-width:100%; max-height:100%;" />
+    <!-- ===== Right: Previews ===== -->
+    <section class="col">
+      <div class="row" style="justify-content:space-between; align-items:baseline">
+        <h3>Previews</h3>
+        <small class="hint">Owner = vector (SVG) • Customer = realista</small>
       </div>
-      <div class="prompt-area">
-        <input type="text" id="promptInput" placeholder="Type your prompt here...">
-        <button class="generate-btn" onclick="generateImage()">
-          <img src="https://cdn-icons-png.flaticon.com/512/747/747376.png" alt="Run" width="24" />
-        </button>
+      <div class="previews">
+        <div class="col">
+          <label>Owner (vector)</label>
+          <div id="owner-preview" class="preview"><span class="hint">Sin imagen</span></div>
+        </div>
+        <div class="col">
+          <label>Customer (realista)</label>
+          <div id="customer-preview" class="preview"><span class="hint">Sin imagen</span></div>
+        </div>
       </div>
-      <input type="file" id="upload" accept="image/*">
-    </div>
-  </div>
-
-  <div id="generatedPanel"></div>
+    </section>
+  </main>
 
   <script>
-    function toggleOption(id) {
-      document.querySelectorAll('.sub-options').forEach(opt => {
-        if (opt.id !== id) opt.style.display = 'none';
-      });
-      const target = document.getElementById(id);
-      target.style.display = target.style.display === 'block' ? 'none' : 'block';
+  /** ========= CONFIG ========= **/
+  const BACKEND = "https://novaai-backend-v2.onrender.com";
+
+  // ===== UI Refs
+  const btnGenerate = document.querySelector('#btn-generate-both');
+  const btnUpload   = document.querySelector('#btn-upload');
+  const btnProducts = document.querySelector('#btn-products');
+  const fileInput   = document.querySelector('#file-input');
+  const promptInput = document.querySelector('#prompt');
+  const ownerPreview = document.querySelector('#owner-preview');
+  const customerPreview = document.querySelector('#customer-preview');
+  const statusEl = document.querySelector('#status');
+  const refWrap = document.querySelector('#ref-wrap');
+  const refThumb = document.querySelector('#ref-thumb');
+
+  const toast = (msg) => alert(msg);
+
+  let referenceDataUrl = null; // base64 cargado por el usuario
+
+  // ===== Helpers =====
+  async function fileToDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function renderSVGInto(container, svgUrl) {
+    if (!container) return;
+    container.innerHTML = '';
+    const obj = document.createElement('object');
+    obj.type = 'image/svg+xml';
+    obj.data = svgUrl;
+    obj.style.width = '100%';
+    obj.style.height = '100%';
+    container.appendChild(obj);
+  }
+
+  async function pollReplicate(getUrl, onProgress) {
+    const headers = { 'Accept': 'application/json' };
+    while (true) {
+      const r = await fetch(getUrl, { headers });
+      if (!r.ok) throw new Error('Replicate poll failed: ' + (await r.text()));
+      const data = await r.json();
+      onProgress?.(data.status);
+      if (data.status === 'succeeded') {
+        return Array.isArray(data.output) ? data.output[0] : data.output;
+      }
+      if (data.status === 'failed' || data.status === 'canceled') {
+        throw new Error('Replicate job ' + data.status);
+      }
+      await new Promise(res => setTimeout(res, 1600));
     }
+  }
 
-    function collapseOptions() {
-      document.querySelectorAll('.sub-options').forEach(opt => opt.style.display = 'none');
-    }
+  function setRasterPreview(url) {
+    customerPreview.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = 'Customer preview';
+    img.style.maxWidth = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'contain';
+    customerPreview.appendChild(img);
+  }
 
-    function toggleImagesPanel() {
-      document.getElementById('generatedPanel').classList.toggle('open');
-    }
+  function setVectorPreview(url) {
+    return renderSVGInto(ownerPreview, url);
+  }
 
-    function enlargeImage(src) {
-      const newWindow = window.open("");
-      newWindow.document.write(`<img src="${src}" style="width:100%;">`);
-    }
+  function setStatus(msg) {
+    if (statusEl) statusEl.textContent = msg || '';
+  }
 
-    function goToOrder() {
-      window.location.href = "orders.html";
-    }
+  // ===== Actions =====
+  async function handleGenerateBoth() {
+    try {
+      const prompt = (promptInput?.value || '').trim();
+      if (!prompt) return toast('Escribe un prompt primero.');
 
-    function generateImage() {
-      const prompt = document.getElementById('promptInput').value;
-      const image = document.getElementById('generatedImage');
-      const panel = document.getElementById('generatedPanel');
+      btnGenerate.setAttribute('disabled', 'true');
+      btnGenerate.classList.add('is-loading');
+      setStatus('Solicitando generación…');
 
-      fetch('https://novaai-backend-v2.onrender.com/generate', {
+      const body = {
+        prompt,
+        mode: 'both',
+        params: { steps: 4 } // Flux exige 1..4, backend también hace clamp
+      };
+      if (referenceDataUrl) body.image_base64 = referenceDataUrl;
+
+      const r = await fetch(`${BACKEND}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
-      })
-      .then(res => res.json())
-      .then(data => {
-        image.src = data.image;
-
-        const container = document.createElement('div');
-        container.classList.add('thumbnail-container');
-
-        const thumb = document.createElement('img');
-        thumb.src = data.image;
-
-        const enlargeBtn = document.createElement('button');
-        enlargeBtn.innerText = "Enlarge";
-        enlargeBtn.onclick = () => enlargeImage(data.image);
-
-        const buyBtn = document.createElement('button');
-        buyBtn.innerText = "Buy";
-        buyBtn.onclick = goToOrder;
-
-        container.appendChild(thumb);
-        container.appendChild(enlargeBtn);
-        container.appendChild(buyBtn);
-
-        if (panel.children.length >= 15) panel.removeChild(panel.firstChild);
-        panel.appendChild(container);
-      })
-      .catch(err => {
-        console.error('Error:', err);
-        alert('Image generation failed');
+        body: JSON.stringify(body)
       });
+
+      const data = await r.json();
+      if (!r.ok) throw new Error((data && data.error) || 'Request failed');
+
+      // Vector (Replicate recraft)
+      if (data.vector_url) {
+        setStatus('Generando vector…');
+        try {
+          const svgUrl = await pollReplicate(data.vector_url);
+          await setVectorPreview(svgUrl);
+        } catch (e) {
+          console.warn(e);
+          toast('Vector falló (owner).');
+        }
+      }
+
+      // Realista (OpenAI directo o fallback Flux vía Replicate)
+      if (data.raster_url) {
+        // Si viene un endpoint de polling, lo detectamos
+        if (/\/predictions\//.test(data.raster_url)) {
+          setStatus('Generando realista…');
+          try {
+            const imgUrl = await pollReplicate(data.raster_url);
+            setRasterPreview(imgUrl);
+          } catch (e) {
+            console.warn(e);
+            toast('Realista falló (customer).');
+          }
+        } else {
+          setRasterPreview(data.raster_url);
+        }
+      }
+
+      if (!data.vector_url && !data.raster_url) {
+        toast('No se pudo generar ninguna imagen.');
+      } else {
+        setStatus('Listo.');
+      }
+
+    } catch (err) {
+      console.error(err);
+      toast('Error: ' + err.message);
+      setStatus('Error.');
+    } finally {
+      btnGenerate.removeAttribute('disabled');
+      btnGenerate.classList.remove('is-loading');
     }
+  }
+
+  // ===== UI Events =====
+  btnGenerate?.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleGenerateBoth();
+  });
+
+  btnUpload?.addEventListener('click', () => fileInput.click());
+  fileInput?.addEventListener('change', async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      referenceDataUrl = await fileToDataURL(f);
+      refThumb.src = referenceDataUrl;
+      refWrap.style.display = 'block';
+    } catch (err) {
+      toast('No se pudo cargar la referencia.');
+    }
+  });
+
+  btnProducts?.addEventListener('click', () => {
+    window.location.href = 'products.html';
+  });
   </script>
 </body>
 </html>
