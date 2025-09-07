@@ -1,199 +1,151 @@
-// index.js — NovaAI backend (Express)
-// Env: OPENAI_API_KEY, REPLICATE_API_TOKEN, PORT (Render injects one)
-
+// index.js
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
+import Replicate from "replicate";
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "20mb" }));
+app.use(express.json({ limit: "25mb" }));
 
 const PORT = process.env.PORT || 3000;
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || "";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
-// ---------- helpers
-async function pollReplicate(predUrl, token) {
-  // Simple polling loop
-  for (let i = 0; i < 60; i++) {
-    const r = await fetch(predUrl, {
-      headers: { Authorization: `Token ${token}`, "Content-Type": "application/json" },
-    });
-    const j = await r.json();
-    if (j.status === "succeeded" || j.status === "failed" || j.status === "canceled") {
-      return j;
-    }
-    await new Promise(res => setTimeout(res, 1500));
-  }
-  throw new Error("Replicate: timeout");
-}
+// Modelos “por nombre” (sin mandar version para evitar 422)
+const VECTOR_MODEL = "recraft-ai/recraft-20b-svg";          // Owner (vector)
+const RASTER_MODEL = "black-forest-labs/flux-schnell";      // Fallback cliente (realista)
 
-function b64FromDataURL(dataUrl) {
-  if (!dataUrl || !dataUrl.startsWith("data:")) return null;
-  const i = dataUrl.indexOf("base64,");
-  return i >= 0 ? dataUrl.slice(i + 7) : null;
-}
+// Helpers
+const isDataUrl = (s = "") => /^data:image\/[a-zA-Z]+;base64,/.test(s);
+const short = (s = "", n = 120) => (s.length > n ? s.slice(0, n) + "…" : s);
 
-// ---------- health
 app.get("/health", (_req, res) =>
   res.json({
     ok: true,
     service: "NovaAI Node",
     port: Number(PORT),
-    vector_model: "recraft-ai/recraft-20b-svg",
-    raster_model: "openai:gpt-image-1 (fallback: Flux Schnell)",
+    base_url: null,
+    vector_model: VECTOR_MODEL,
+    raster_model: RASTER_MODEL,
   })
 );
 
-// ---------- /api/generate
-// body: { prompt?:string, ref?: dataURL or http(s) url, meta?: {...} }
+/**
+ * /api/generate
+ * body: { prompt?: string, ref?: string|url, reference?: string|url, meta?: any }
+ * Devuelve: { owner: dataUrl|url, customer: dataUrl|url }
+ */
 app.post("/api/generate", async (req, res) => {
-  const { prompt = "", ref = null, meta = {} } = req.body || {};
+  const prompt = (req.body?.prompt || "").trim();
+  const ref = req.body?.ref || req.body?.reference || null; // dataURL o URL
+  const meta = req.body?.meta || req.body?.ref_meta || null;
 
-  // Build prompts using the reference
-  const hasRef = !!ref;
-  const promptOwner =
-    (prompt || "").trim() ||
-    (hasRef ? `Vectorize and color the reference image for laser-cut friendly SVG.` : `Color vector illustration, laser-friendly.`);
-
-  const promptCustomer =
-    (prompt || "").trim() ||
-    (hasRef ? `Create a photorealistic mockup faithful to the reference image.` : `Realistic product photo, studio lighting.`);
+  // Prompt base segun referencia
+  const refHint = ref
+    ? "Faithfully keep the base pattern, composition and proportions of the reference image. Apply only the requested changes."
+    : "";
+  const ownerPrompt =
+    (ref ? `${refHint} Vector, flat colors, thick outlines. ` : "Vector, flat colors, thick outlines. ") +
+    (prompt || "Create a clean vector icon.");
+  const customerPrompt =
+    (ref ? `${refHint} Photorealistic look, studio lighting, product mockup style. ` : "Photorealistic product mockup, studio lighting. ") +
+    (prompt || "Render a realistic product photo.");
 
   try {
-    // 1) OWNER (vector) via Replicate / Recraft SVG
-    const ownerUrl = await (async () => {
-      const token = process.env.REPLICATE_API_TOKEN;
-      if (!token) throw new Error("Missing REPLICATE_API_TOKEN");
+    // =========================
+    // 1) OWNER (vector) — Recraft (Replicate SDK)
+    // =========================
+    let ownerUrl = null;
+    if (!REPLICATE_API_TOKEN) {
+      throw new Error("Missing REPLICATE_API_TOKEN");
+    }
+    const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
 
-      const body = {
-        version: "latest", // let Replicate use default for this model
-        input: {
-          // model takes 'prompt'; keep minimal + safe params
-          prompt: hasRef ? `${promptOwner} Keep shapes & composition based on the reference.` : promptOwner,
-          // steps must be <= 4 in Schnell; SVG endpoint is safe with small steps too
-          // if the model ignores unknown params, that's fine:
-          num_inference_steps: 4,
-          // Some Recraft builds accept image as "image" or "reference_image".
-          // We pass both (one will be ignored safely if not supported):
-          image: hasRef && ref.startsWith("http") ? ref : undefined,
-          reference_image: hasRef && ref.startsWith("data:") ? b64FromDataURL(ref) : undefined,
-          // Encourage SVG look:
-          style: "vector"
-        }
-      };
-
-      const start = await fetch("https://api.replicate.com/v1/models/recraft-ai/recraft-20b-svg/predictions", {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!start.ok) {
-        const t = await start.text();
-        throw new Error(`Replicate start error: ${t}`);
-      }
-
-      const job = await start.json();
-      const result = await pollReplicate(job.urls.get, token);
-      if (result.status !== "succeeded") {
-        throw new Error(`Replicate failed: ${result.status}`);
-      }
-
-      // result.output may be array or single url
-      const out = Array.isArray(result.output) ? result.output[0] : result.output;
-      return out;
-    })();
-
-    // 2) CUSTOMER (realistic) via OpenAI, fallback to Flux Schnell
-    const customerUrl = await (async () => {
-      const key = process.env.OPENAI_API_KEY;
-
-      // try OpenAI first
-      if (key) {
-        try {
-          const body = {
-            model: "gpt-image-1",
-            prompt: hasRef
-              ? `${promptCustomer} Stay faithful to the base reference.`
-              : promptCustomer,
-            size: "1024x1024"
-          };
-
-          // Support reference: pass as image array (data URL or remote)
-          if (hasRef) {
-            body.image = ref; // OpenAI accepts data URL or remote URL for inpainting/background tasks
-          }
-
-          const r = await fetch("https://api.openai.com/v1/images/generations", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${key}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(body)
-          });
-
-          const j = await r.json();
-          if (r.ok && j?.data?.[0]?.url) return j.data[0].url;
-
-          // If OpenAI returns org verification/quota/etc, fall back
-          console.warn("OpenAI image failed, falling back. Details:", j);
-        } catch (err) {
-          console.warn("OpenAI call error -> fallback", err);
-        }
-      }
-
-      // Fallback: Flux Schnell on Replicate
-      const token = process.env.REPLICATE_API_TOKEN;
-      if (!token) throw new Error("Missing REPLICATE_API_TOKEN for fallback");
-
-      const body = {
-        version: "latest",
-        input: {
-          prompt: hasRef
-            ? `${promptCustomer} Preserve global composition from the reference.`
-            : promptCustomer,
-          num_inference_steps: 4,
-          // Flux accepts "image" as URL or b64 data; we pass both safely
-          image: hasRef && ref.startsWith("http") ? ref : undefined,
-          image_base64: hasRef && ref.startsWith("data:") ? b64FromDataURL(ref) : undefined
-        }
-      };
-
-      const start = await fetch("https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions", {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!start.ok) {
-        const t = await start.text();
-        throw new Error(`Flux start error: ${t}`);
-      }
-
-      const job = await start.json();
-      const result = await pollReplicate(job.urls.get, token);
-      if (result.status !== "succeeded") {
-        throw new Error(`Flux failed: ${result.status}`);
-      }
-
-      const out = Array.isArray(result.output) ? result.output[0] : result.output;
-      return out;
-    })();
-
-    res.json({
-      owner: { url: ownerUrl, title: meta?.title || "Owner (vector)" },
-      customer: { url: customerUrl, title: meta?.title || "Customer (realistic)" }
+    // Recraft acepta prompt de texto. Si hay referencia la incorporamos en el prompt.
+    // Usamos el “model” sin enviar un campo "version" para evitar el 422.
+    const recraftOut = await replicate.run(VECTOR_MODEL, {
+      input: {
+        prompt: ownerPrompt,
+        // Campos seguros; evitamos mandar "version" o campos no permitidos.
+        // Si tu plan incluye seed/num_inference_steps puedes añadirlos aquí.
+      },
     });
-  } catch (error) {
-    console.error("[/api/generate] Error:", error);
-    res.status(500).json({ error: String(error?.message || error) });
+
+    // `recraftOut` suele retornar array de URLs
+    if (Array.isArray(recraftOut) && recraftOut.length) {
+      ownerUrl = recraftOut[0];
+    } else if (typeof recraftOut === "string") {
+      ownerUrl = recraftOut;
+    }
+
+    // =========================
+    // 2) CUSTOMER (realista) — OpenAI; fallback a FLUX (Replicate)
+    // =========================
+    let customerUrl = null;
+    let openaiOk = false;
+
+    if (OPENAI_API_KEY) {
+      try {
+        // Usamos /images/generations (texto). Si hay ref dataURL, la incluimos como “guide” en prompt.
+        // (El endpoint de edits requiere multipart; para máxima compatibilidad dejamos generations.)
+        const oa = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-image-1",
+            prompt: ref ? `${customerPrompt}\nReference URL (if any): ${isDataUrl(ref) ? "" : ref}` : customerPrompt,
+            size: "1024x1024",
+            // No mandamos response_format para evitar “unknown parameter”
+          }),
+        });
+
+        const j = await oa.json();
+        if (!oa.ok) {
+          // Si OpenAI rechaza por verificación / cuota, lo registramos y pasamos a fallback
+          console.warn("[openai] generation failed:", j);
+          throw new Error(j?.error?.message || "openai gen failed");
+        }
+        customerUrl = j?.data?.[0]?.url || null;
+        openaiOk = !!customerUrl;
+      } catch (e) {
+        openaiOk = false;
+      }
+    }
+
+    // Fallback a FLUX (Replicate) si OpenAI falla o no hay API key
+    if (!openaiOk) {
+      const fluxOut = await replicate.run(RASTER_MODEL, {
+        input: {
+          prompt: customerPrompt,
+          // Para evitar 422 no enviamos “version” ni campos que no figuren.
+          // Si tu plan admite num_inference_steps <= 4 puedes añadir: num_inference_steps: 4
+        },
+      });
+      if (Array.isArray(fluxOut) && fluxOut.length) {
+        customerUrl = fluxOut[0];
+      } else if (typeof fluxOut === "string") {
+        customerUrl = fluxOut;
+      }
+    }
+
+    // Safety
+    if (!ownerUrl && !customerUrl) {
+      throw new Error("No output from providers.");
+    }
+
+    res.json({ owner: ownerUrl, customer: customerUrl, meta: { usedRef: !!ref, title: meta?.title || null } });
+  } catch (err) {
+    console.error("[api/generate] Error:", err);
+    res.status(500).json({
+      error: {
+        message: String(err?.message || err),
+        type: "server_error",
+      },
+    });
   }
 });
 
