@@ -14,9 +14,9 @@ const PORT = process.env.PORT || 3000;
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
-// Modelos por nombre (sin version para evitar 422 en Replicate)
-const VECTOR_MODEL = "recraft-ai/recraft-20b-svg";     // Owner (vector)
-const FLUX_MODEL   = "black-forest-labs/flux-schnell"; // Fallback raster
+// Modelos principales
+const VECTOR_MODEL = "recraft-ai/recraft-20b-svg";     // Para vector (Owner)
+const FLUX_MODEL   = "black-forest-labs/flux-schnell"; // Fallback raster (Customer)
 
 const isDataUrl = s => typeof s === "string" && /^data:image\/[a-zA-Z]+;base64,/.test(s);
 
@@ -26,70 +26,66 @@ app.get("/health", (_req, res) =>
     service: "NovaAI Node",
     port: Number(PORT),
     vector_model: VECTOR_MODEL,
-    raster_model: `openai:gpt-image-1 (fallback ${FLUX_MODEL})`
+    raster_model: `openai:gpt-image-1 (fallback ${FLUX_MODEL})`,
   })
 );
 
-/**
- * POST /api/generate
- * body: { prompt?: string, ref?: dataURL|url|null, meta?: {title?,source?} }
- * resp: { ok, owner, customer, title, code, base_from }
- */
 app.post("/api/generate", async (req, res) => {
   const prompt = (req.body?.prompt || "").trim();
-  const ref    = req.body?.ref || null;   // dataURL o URL
-  const meta   = req.body?.meta || null;
+  const ref = req.body?.ref || null; // Imagen base o null
+  const meta = req.body?.meta || {};
 
-  const keepRef =
-    ref ? "Keep the same composition, proportion, camera angle and base geometry from the reference. Only replace the main motif per the prompt." : "";
+  const keepRef = ref
+    ? "Preserve the same composition, angle, and proportions of the reference image. Modify only the main element according to the prompt."
+    : "";
 
   const ownerPrompt =
-    `${keepRef ? keepRef + " " : ""}Clean vector style, flat solid colors, thick outlines, high contrast (SVG). ` +
-    (prompt || "Create a clean vector icon, laser-friendly.");
+    `${keepRef ? keepRef + " " : ""}Clean vector style, flat solid colors, bold outlines, high contrast, laser-friendly SVG. ` +
+    (prompt || "Create a vector icon with bold outlines.");
 
   const customerPrompt =
-    `${keepRef ? keepRef + " " : ""}Photorealistic product mockup, studio lighting, soft shadows, high realism. ` +
-    (prompt || "Realistic product photo.");
+    `${keepRef ? keepRef + " " : ""}Photorealistic studio mockup, product lighting, soft reflections, professional render. ` +
+    (prompt || "Realistic product photo in studio lighting.");
 
   try {
-    // Replicate SDK para vector
     if (!REPLICATE_API_TOKEN) throw new Error("Missing REPLICATE_API_TOKEN");
     const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
 
-    // 1) OWNER (vector) — Recraft
+    // ========== VECTOR (Owner) ==========
     let ownerUrl = null;
     const recraftOut = await replicate.run(VECTOR_MODEL, { input: { prompt: ownerPrompt } });
     if (Array.isArray(recraftOut) && recraftOut.length) ownerUrl = recraftOut[0];
     else if (typeof recraftOut === "string") ownerUrl = recraftOut;
 
-    // 2) CUSTOMER (realista) — OpenAI i2i si hay ref, si no texto; fallback FLUX
+    // ========== RASTER (Customer) ==========
     let customerUrl = null;
     let openaiOk = false;
 
-    async function dataUrlToBuffer(dataUrl){
+    async function dataUrlToBuffer(dataUrl) {
       const m = /^data:(.+?);base64,(.*)$/i.exec(dataUrl || "");
-      if(!m) return null;
+      if (!m) return null;
       return Buffer.from(m[2], "base64");
     }
-    async function fetchAsBuffer(u){
-      const rr = await fetch(u);
-      if(!rr.ok) throw new Error("ref fetch failed");
-      const ab = await rr.arrayBuffer();
+    async function fetchAsBuffer(u) {
+      const r = await fetch(u);
+      if (!r.ok) throw new Error("ref fetch failed");
+      const ab = await r.arrayBuffer();
       return Buffer.from(ab);
     }
 
     if (OPENAI_API_KEY) {
       try {
         if (ref) {
-          // ==== Image-to-Image (OpenAI /images/edits, multipart) ====
-          let buf = null, filename = "reference.png";
+          // ===== Image to Image (OpenAI edits endpoint) =====
+          let buf = null;
+          let filename = "reference.png";
           if (isDataUrl(ref)) {
             buf = await dataUrlToBuffer(ref);
           } else {
             buf = await fetchAsBuffer(ref);
-            if (ref.includes(".jpg") || ref.includes(".jpeg")) filename = "reference.jpg";
+            if (ref.includes(".jpg")) filename = "reference.jpg";
+            if (ref.includes(".jpeg")) filename = "reference.jpeg";
             if (ref.includes(".png")) filename = "reference.png";
-            if (ref.includes(".webp")) filename = "reference.webp";
           }
           if (!buf) throw new Error("invalid reference buffer");
 
@@ -109,7 +105,7 @@ app.post("/api/generate", async (req, res) => {
           customerUrl = j?.data?.[0]?.url || null;
           openaiOk = !!customerUrl;
         } else {
-          // ==== Texto a imagen ====
+          // ===== Text to Image =====
           const oa = await fetch("https://api.openai.com/v1/images/generations", {
             method: "POST",
             headers: {
@@ -119,7 +115,7 @@ app.post("/api/generate", async (req, res) => {
             body: JSON.stringify({
               model: "gpt-image-1",
               prompt: customerPrompt,
-              size: "1024x1024"
+              size: "1024x1024",
             }),
           });
           const j = await oa.json();
@@ -128,13 +124,13 @@ app.post("/api/generate", async (req, res) => {
           openaiOk = !!customerUrl;
         }
       } catch (e) {
-        console.warn("[openai] fallback to Replicate:", e?.message || e);
+        console.warn("[openai error] → fallback to FLUX:", e.message);
         openaiOk = false;
       }
     }
 
+    // Fallback si OpenAI falla
     if (!openaiOk) {
-      // Fallback a FLUX (Replicate) si OpenAI falla o no hay API key
       const fluxOut = await replicate.run(FLUX_MODEL, { input: { prompt: customerPrompt } });
       if (Array.isArray(fluxOut) && fluxOut.length) customerUrl = fluxOut[0];
       else if (typeof fluxOut === "string") customerUrl = fluxOut;
@@ -144,11 +140,11 @@ app.post("/api/generate", async (req, res) => {
 
     res.json({
       ok: true,
-      owner: ownerUrl || ref || null,
-      customer: customerUrl || ref || null,
+      owner: ownerUrl,
+      customer: customerUrl,
       title: meta?.title || "Generated",
       code: `GEN-${Date.now()}`,
-      base_from: meta?.source || (ref ? "reference" : "prompt")
+      base_from: meta?.source || (ref ? "reference" : "prompt"),
     });
   } catch (err) {
     console.error("[/api/generate] error:", err);
@@ -157,5 +153,5 @@ app.post("/api/generate", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Backend ready on http://localhost:${PORT}`);
+  console.log(`✅ Backend ready on http://localhost:${PORT}`);
 });
