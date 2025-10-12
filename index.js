@@ -1,8 +1,7 @@
 // index.js
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch";
-import FormData from "form-data";
+import fetch from "node-fetch"; // puedes quitar esta línea y usar el fetch global si quieres
 import Replicate from "replicate";
 
 const app = express();
@@ -18,7 +17,7 @@ const RECRAFT_VECTOR = "recraft-ai/recraft-20b-svg";        // Fallback vector (
 const FLUX_RASTER    = "black-forest-labs/flux-schnell";    // Fallback raster
 const VECTORIZER     = "methexis-inc/img2svg";              // Raster→SVG (alta fidelidad)
 
-// Utilidades básicas
+// Utils
 const isDataUrl = s => typeof s === "string" && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(s);
 
 async function dataUrlToBlob(dataUrl) {
@@ -59,23 +58,22 @@ app.get("/health", (_req, res) =>
  *   prompt?: string,
  *   ref?: string (dataURL o URL),
  *   strict?: boolean,
- *   strength?: number (0.2-0.9 sugerido, para fallback SDXL/FLUX),
+ *   strength?: number (0.2-0.9 sugerido, fallback),
  *   meta?: { title?, source? }
  * }
  * resp: { ok, owner, customer, used }
  */
 app.post("/api/generate", async (req, res) => {
   const promptRaw = (req.body?.prompt || "").trim();
-  const ref       = req.body?.ref || null;          // dataURL/URL
+  const ref       = req.body?.ref || null;
   const strict    = !!req.body?.strict;
-  const strength  = Number(req.body?.strength || 0); // (para fallback SDXL/FLUX)
+  const strength  = Number(req.body?.strength || 0);
   const meta      = req.body?.meta || null;
 
   const preserveText = ref
     ? "Preserve the original composition, camera/lens, lighting, background and materials. Do not alter the layout or framing."
     : "";
 
-  // Prompts
   const ownerPrompt =
     `${preserveText} Clean vector style, flat solid colors, bold thick outlines, high contrast, simplified shapes for laser engraving/cutting. ` +
     (promptRaw || "Create a clean vector icon, laser-friendly.");
@@ -84,14 +82,13 @@ app.post("/api/generate", async (req, res) => {
     `${preserveText} ${strict ? "Change only the requested subject/shape; keep everything else identical. " : ""}` +
     (promptRaw || "Realistic product mockup, studio lighting.");
 
-  // Replicate client
   if (!REPLICATE_API_TOKEN) {
     return res.status(500).json({ ok: false, error: "Missing REPLICATE_API_TOKEN" });
   }
   const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
 
-  let customerUrl = null; // raster final
-  let ownerUrl    = null; // svg final
+  let customerUrl = null;
+  let ownerUrl    = null;
   const used = {
     raster_primary: null,
     raster_fallback: FLUX_RASTER,
@@ -103,23 +100,21 @@ app.post("/api/generate", async (req, res) => {
   };
 
   try {
-    // ========= 1) CUSTOMER (raster, alta fidelidad con ref) =========
+    // ===== 1) CUSTOMER (raster) =====
     if (OPENAI_API_KEY && ref) {
       try {
-        // OpenAI images/edits: subimos la referencia como base
         const blob = await refToBlob(ref);
         if (!blob) throw new Error("Could not read reference image.");
 
-        const fd = new FormData();
-        // prompt reforzado para preservar
+        const fd = new FormData(); // ← global en Node 22
         const effectivePrompt = customerPrompt || "Generate a realistic photo, preserving the original composition.";
         fd.append("prompt", effectivePrompt);
         fd.append("model", "gpt-image-1");
         fd.append("size", "1024x1024");
-        fd.append("image[]", blob.buf, {
-          filename: "reference." + (blob.mime.split("/")[1] || "png"),
-          contentType: blob.mime
-        });
+
+        // Usamos Blob global (Node 22) para adjuntar el binario
+        const ext = (blob.mime.split("/")[1] || "png").toLowerCase();
+        fd.append("image[]", new Blob([blob.buf], { type: blob.mime }), `reference.${ext}`);
 
         const oa = await fetch("https://api.openai.com/v1/images/edits", {
           method: "POST",
@@ -137,7 +132,6 @@ app.post("/api/generate", async (req, res) => {
     }
 
     if (!customerUrl) {
-      // Fallback a FLUX (texto). Si hay ref, va en el prompt reforzado.
       try {
         const p = ref
           ? `${customerPrompt} Use the reference image as the exact base for composition and lighting.`
@@ -145,8 +139,9 @@ app.post("/api/generate", async (req, res) => {
 
         const out = await replicate.run(FLUX_RASTER, {
           input: {
-            prompt: p,
-            // num_inference_steps: Math.max(4, Math.min(12, Math.round((strength || 0.4) * 20))) || undefined
+            prompt: p
+            // Puedes mapear strength → pasos si tu plan lo permite:
+            // num_inference_steps: Math.max(4, Math.min(12, Math.round((strength || 0.4) * 20)))
           }
         });
         if (Array.isArray(out) && out.length) customerUrl = out[0];
@@ -157,15 +152,10 @@ app.post("/api/generate", async (req, res) => {
       }
     }
 
-    // ========= 2) OWNER (vector) =========
-    // Estrategia:
-    // - Si existe un raster (customerUrl), lo pasamos por vectorizador (SVG de alta fidelidad).
-    // - Si no hay raster pero hay ref (url/data), intentamos usar la ref como entrada del vectorizador.
-    // - Si todo falla, generamos con Recraft (texto→SVG) como fallback.
+    // ===== 2) OWNER (vector) =====
     let inputForVector = customerUrl || null;
 
     if (!inputForVector && ref) {
-      // si la ref era dataURL, necesitamos una url fetchable; en ese caso, forzamos al menos a crear un raster via FLUX:
       if (isDataUrl(ref)) {
         try {
           const p = `${ownerPrompt} (convert reference to vector while preserving composition)`;
@@ -180,14 +170,9 @@ app.post("/api/generate", async (req, res) => {
       }
     }
 
-    // 2a) Vectorizer primario (raster→SVG)
     if (inputForVector) {
       try {
-        // model: methexis-inc/img2svg
-        // doc: habitualmente acepta { image: <url> }
         const out = await replicate.run(VECTORIZER, { input: { image: inputForVector } });
-        // suele devolver un SVG (string) o URL; para máxima compatibilidad,
-        // si es string SVG, lo devolvemos como data URL
         if (Array.isArray(out) && out.length) {
           ownerUrl = out[0];
         } else if (typeof out === "string") {
@@ -196,7 +181,7 @@ app.post("/api/generate", async (req, res) => {
             const b64 = Buffer.from(svg, "utf-8").toString("base64");
             ownerUrl = `data:image/svg+xml;base64,${b64}`;
           } else {
-            ownerUrl = svg; // por si fuese URL
+            ownerUrl = svg;
           }
         }
       } catch (e) {
@@ -204,7 +189,6 @@ app.post("/api/generate", async (req, res) => {
       }
     }
 
-    // 2b) Fallback vector (Recraft texto→SVG)
     if (!ownerUrl) {
       try {
         const out = await replicate.run(RECRAFT_VECTOR, { input: { prompt: ownerPrompt } });
