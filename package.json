@@ -2,16 +2,13 @@
   "name": "novaai-backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "index.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "start:local": "node backend/server-local.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.873.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.1",
-    "express": "^4.21.2",
-    "node-fetch": "^3.3.2",
-    "replicate": "^0.34.1"
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2"
   }
 }
