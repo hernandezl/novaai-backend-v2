@@ -5,57 +5,81 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>NeguNova — NovaAI</title>
 <style>
-  :root{--bg:#0f1115;--panel:#151a26;--ring:rgba(255,255,255,.08);--text:#e8ecf1;--muted:#aeb6c3;--brand:#ff7a18;--ok:#35c759}
+  :root{
+    --bg:#0f1115;--panel:#151a26;--ring:rgba(255,255,255,.08);--text:#e8ecf1;--muted:#aeb6c3;
+    --brand:#ff7a18;--ok:#35c759;--warn:#ffc107;--chip:#2b3347
+  }
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Arial}
-  header{background:linear-gradient(90deg,#ff7a18,#f7b733);color:#141414;padding:10px 16px}
-  .nav{display:flex;gap:12px}.nav a{background:rgba(255,255,255,.2);padding:6px 10px;border-radius:10px;color:#141414;font-weight:700;text-decoration:none}
+
+  header{background:linear-gradient(90deg,#ff7a18,#f7b733);color:#141414;padding:10px 16px;position:sticky;top:0;z-index:50}
+  .nav{display:flex;gap:12px}
+  .nav a{background:rgba(255,255,255,.2);padding:6px 10px;border-radius:10px;color:#141414;font-weight:700;text-decoration:none}
   .nav a[aria-current="page"]{background:#fff}
+
   main{max-width:1200px;margin:0 auto;padding:18px;display:grid;grid-template-columns:420px 1fr;gap:16px}
   .panel{background:var(--panel);border:1px solid var(--ring);border-radius:16px;padding:14px}
+
   .field{display:grid;gap:6px;margin:10px 0}
   label{font-size:12px;color:var(--muted)}
   input[type="file"],select,textarea{background:#0f1420;border:1px solid var(--ring);color:#fff;padding:10px;border-radius:10px;width:100%}
   .btn{padding:10px 14px;border:0;border-radius:12px;background:var(--brand);color:#141414;font-weight:800;cursor:pointer}
   .btn.ghost{background:transparent;border:1px solid var(--ring);color:#e8ecf1}
   .btn.ok{background:var(--ok);color:#fff}
+  .btn.warn{background:var(--warn);color:#141414;font-weight:900}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+
+  .row{display:flex;gap:8px;align-items:center}
+
+  /* Chip producto seleccionado */
+  .chip{display:inline-flex;gap:8px;align-items:center;background:var(--chip);border:1px solid var(--ring);border-radius:999px;padding:6px 10px;margin-top:6px}
+  .chip .thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;background:#0b0f18}
+  .chip .name{font-weight:700}
+  .chip .x{margin-left:6px;border:1px solid var(--ring);background:#1b2131;color:#cfd8ea;border-radius:999px;padding:3px 8px;font-size:12px;cursor:pointer}
+
+  /* Resultado */
   .imgbox{background:#0b0f18;border:1px solid var(--ring);border-radius:12px;min-height:520px;display:flex;align-items:center;justify-content:center;overflow:hidden}
   .imgbox img{max-width:100%;max-height:100%;display:block}
+
   .helper{color:var(--muted);font-size:12px}
   .out{background:#0f1420;border:1px solid var(--ring);border-radius:14px;padding:10px;margin-top:10px;white-space:pre-wrap;font-size:12px}
-  .chip{display:inline-flex;gap:8px;align-items:center;background:#2b3347;border-radius:999px;padding:6px 10px;margin:6px 0}
-  .thumb{width:28px;height:28px;border-radius:6px;object-fit:cover}
-  .chip .x{margin-left:6px;background:#1d2230;border:1px solid var(--ring);color:#e8ecf1;border-radius:8px;padding:4px 7px;cursor:pointer}
-  /* Drawer (right) */
-  .drawer{position:fixed;top:0;right:-420px;width:420px;height:100vh;background:#0f1420;border-left:1px solid var(--ring);box-shadow:-10px 0 30px rgba(0,0,0,.35);transition:right .28s ease;z-index:60;display:flex;flex-direction:column}
-  .drawer.open{right:0}
-  .drawer .head{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--ring)}
-  .drawer .list{padding:12px;display:grid;grid-template-columns:1fr;gap:10px;overflow:auto}
-  .card{border:1px solid var(--ring);border-radius:12px;background:#0b0f18;overflow:hidden}
-  .card img{width:100%;height:180px;object-fit:cover;display:block}
-  .card .bar{display:flex;gap:8px;padding:10px;border-top:1px solid var(--ring)}
-  .btn.yellow{background:#f1c40f;color:#141414;font-weight:800}
+
+  /* Panel deslizante de historial (derecha) */
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(380px,92vw);background:#0f1420;border-left:1px solid #2a3244;transform:translateX(100%);transition:transform .25s ease;z-index:80;display:flex;flex-direction:column}
+  .drawer.on{transform:translateX(0)}
+  .drawer .head{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid #2a3244}
+  .drawer h4{margin:0;font-size:14px}
+  .drawer .body{padding:12px;overflow:auto;display:grid;gap:10px}
+  .thumb-card{background:#121827;border:1px solid #2a3244;border-radius:12px;padding:8px}
+  .thumb-card img{width:100%;height:170px;object-fit:cover;border-radius:8px;display:block}
+  .thumb-actions{display:flex;gap:8px;margin-top:8px}
+  .thumb-actions .btn{padding:8px 10px;border-radius:10px}
 </style>
 </head>
 <body>
 <header>
   <nav class="nav">
-    <a href="home.html">Home</a>
-    <a href="products.html">Products</a>
-    <a href="orders.html">Orders</a>
-    <a href="novaai.html" aria-current="page">NovaAI</a>
+    <a href="/home.html">Home</a>
+    <a href="/products.html">Products</a>
+    <a href="/orders.html">Orders</a>
+    <a href="/novaai.html" aria-current="page">NovaAI</a>
   </nav>
 </header>
 
 <main>
-  <!-- Left: controls -->
+  <!-- Lado izquierdo: controles -->
   <section class="panel">
     <h3 style="margin:0 0 6px">Generator</h3>
-    <div id="health" class="helper">Backend: checking…</div>
+    <div id="health" class="helper">Local proxy: checking…</div>
 
     <div class="field">
       <label>Catalog</label>
-      <button id="openCatalog" class="btn">Open catalog</button>
+      <div class="row">
+        <button id="openCatalog" class="btn">Open Catalog</button>
+        <button id="toggleHistory" class="btn warn">Order History</button>
+        <button id="clearHist" class="btn ghost" title="Remove all saved images">Clear</button>
+      </div>
       <div id="chip"></div>
+      <div class="helper">You can remove the product chip to work only with your upload and text.</div>
     </div>
 
     <div class="field">
@@ -74,18 +98,17 @@
     </div>
 
     <div class="field">
-      <label>Prompt (ONLY change figure/text)</label>
-      <textarea id="prompt" rows="4" placeholder="e.g., replace the figure with a sports car; add text “ANA & LUIS 2025”"></textarea>
-      <div class="helper">Negative prompts lock the style/composition. If no prompt and there is a reference, we imitate it faithfully.</div>
+      <label>Prompt (only change figure and/or text)</label>
+      <textarea id="prompt" rows="4" placeholder="E.g.: Replace the figure with a sports car; text 'ANA Y LUIS 2025'"></textarea>
+      <div class="helper">Predefined negatives restrict changes exclusively to figures and texts; style/composition remain intact.</div>
     </div>
 
-    <div class="field" style="display:flex;gap:8px;align-items:center">
+    <div class="field" style="display:flex;gap:8px">
       <button id="btnGen" class="btn ok">Generate</button>
-      <button id="btnOrder" class="btn yellow">Order</button>
     </div>
   </section>
 
-  <!-- Right: single result -->
+  <!-- Lado derecho: resultado único para el cliente -->
   <section class="panel">
     <h3 style="margin:0 0 6px">Result (customer)</h3>
     <div id="result" class="imgbox"><div class="helper">No image yet.</div></div>
@@ -93,185 +116,223 @@
   </section>
 </main>
 
-<!-- Drawer: History -->
+<!-- Drawer de historial -->
 <aside id="drawer" class="drawer" aria-hidden="true">
   <div class="head">
-    <strong>Image history</strong>
-    <div class="row" style="gap:8px">
-      <button id="btnClearHist" class="btn ghost">Clear</button>
+    <h4>Image history (max: 20)</h4>
+    <div class="row">
       <button id="btnCloseDrawer" class="btn ghost">Close</button>
+      <button id="btnClearDrawer" class="btn">Clear history</button>
     </div>
   </div>
-  <div id="histList" class="list"></div>
+  <div id="histBody" class="body"></div>
 </aside>
 
 <script>
-/* ===== Config ===== */
-const BACKEND_BASE='https://novaai-backend-v2.onrender.com';
-const ENDPOINT_HEALTH=BACKEND_BASE+'/api/health';
-const ENDPOINT_GENERATE=BACKEND_BASE+'/api/generate';
-const NVAI_KEY='novaai:selectedProduct';
-const HISTORY_KEY='novaai:history:v2';
+/* ======= Config ======= */
+const BACKEND = 'https://novaai-backend-v2.onrender.com';
+const ENDPOINT = BACKEND + '/api/generate';
 
-/* ===== Utils ===== */
-function withTimeout(p, ms=90000){ let t; const timer=new Promise((_,rej)=>t=setTimeout(()=>rej(new Error('Network timeout')),ms)); return Promise.race([p.finally(()=>clearTimeout(t)),timer]); }
+/* ======= Utils ======= */
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function withTimeout(p, ms=120000){ let t; const timer=new Promise((_,rej)=>t=setTimeout(()=>rej(new Error('Network timeout')),ms)); return Promise.race([p.finally(()=>clearTimeout(t)),timer]); }
 async function fetchJSON(url, init){ try{ const r=await fetch(url,init); const t=await r.text(); let j=null; try{ j=JSON.parse(t); }catch{} return {ok:r.ok,status:r.status,json:j,text:t,error:null}; }catch(e){ return {ok:false,status:0,json:null,text:'',error:String(e)}; } }
 function fileToDataURL(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); }); }
+function dataURLtoBlob(dataURL){ const [h, b64] = dataURL.split(','); const mime = /data:(.*?);base64/.exec(h)?.[1]||'image/png'; return new Blob([Uint8Array.from(atob(b64), c=>c.charCodeAt(0))], {type:mime}); }
 
-/* ===== Incoming (from Products) ===== */
-const qs = new URLSearchParams(location.search);
+/* ======= Cargar payload de Products (si existe) ======= */
 let incoming=null;
-try{ incoming = JSON.parse(sessionStorage.getItem('novaai_incoming')||'null'); }catch{}
-incoming = incoming || {
-  id: qs.get('id')||'',
-  name: qs.get('name')||'',
-  ref: qs.get('ref')||'',
-  prompt: qs.get('prompt')||''
-};
+try{
+  incoming = JSON.parse(sessionStorage.getItem('novaai_incoming')||'null');
+}catch{}
+if(!incoming){
+  // fallback para la clave antigua
+  try{ incoming = JSON.parse(sessionStorage.getItem('novaai:selectedProduct')||'null'); }catch{}
+}
 
-/* ===== UI refs ===== */
+/* ======= UI refs ======= */
 const health = document.getElementById('health');
 const chip = document.getElementById('chip');
 const upload = document.getElementById('upload');
 const font = document.getElementById('font');
 const promptBox = document.getElementById('prompt');
 const btnGen = document.getElementById('btnGen');
-const btnOrder = document.getElementById('btnOrder');
 const openCatalog = document.getElementById('openCatalog');
 const result = document.getElementById('result');
 const msg = document.getElementById('msg');
-const drawer = document.getElementById('drawer');
-const btnCloseDrawer = document.getElementById('btnCloseDrawer');
-const btnClearHist = document.getElementById('btnClearHist');
-const histList = document.getElementById('histList');
 
-/* ===== History helpers ===== */
-function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]'); }catch{ return []; } }
-function saveHistory(arr){ localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); }
-function addHistory(src){
-  if(!src) return;
-  let h=loadHistory();
-  // keep max 20
-  while(h.length>=20) h.shift();
-  h.push({ id:crypto.randomUUID(), src, ts:Date.now() });
-  saveHistory(h);
+const drawer = document.getElementById('drawer');
+const toggleHistory = document.getElementById('toggleHistory');
+const btnCloseDrawer = document.getElementById('btnCloseDrawer');
+const btnClearDrawer = document.getElementById('btnClearDrawer');
+const clearHistTop = document.getElementById('clearHist');
+const histBody = document.getElementById('histBody');
+
+/* ======= History (localStorage) ======= */
+const HKEY = 'novaai_history_v2';
+function loadHist(){ try{ return JSON.parse(localStorage.getItem(HKEY)||'[]'); }catch{ return []; } }
+function saveHist(arr){ try{ localStorage.setItem(HKEY, JSON.stringify(arr.slice(0,20))); }catch{} }
+function pushHist(item){
+  const arr = loadHist();
+  arr.unshift(item);
+  saveHist(arr);
+  renderHistory();
 }
 function renderHistory(){
-  const h=loadHistory().slice().reverse();
-  histList.innerHTML='';
-  if(!h.length){ histList.innerHTML='<div class="helper">No images yet.</div>'; return; }
-  h.forEach(item=>{
-    const card=document.createElement('div'); card.className='card';
-    card.innerHTML=`
-      <img src="${item.src}" alt="hist">
-      <div class="bar">
-        <button class="btn" data-x="view">Enlarge</button>
-        <button class="btn yellow" data-x="order">Order</button>
-      </div>`;
-    card.querySelector('[data-x="view"]').onclick=()=>{ const w=open('about:blank','_blank'); w.document.write('<img style="max-width:100%" src="'+item.src+'">'); w.document.close(); };
-    card.querySelector('[data-x="order"]').onclick=()=>{ location.assign('orders.html?img='+encodeURIComponent(item.src)); };
-    histList.appendChild(card);
+  const arr = loadHist();
+  histBody.innerHTML = '';
+  arr.forEach((it,idx)=>{
+    const card = document.createElement('div'); card.className='thumb-card';
+    const im = new Image(); im.src = it.image; card.appendChild(im);
+    const actions = document.createElement('div'); actions.className='thumb-actions';
+    const b1 = document.createElement('button'); b1.className='btn ghost'; b1.textContent='Enlarge';
+    b1.onclick = ()=> openImage(it.image);
+    const b2 = document.createElement('button'); b2.className='btn warn'; b2.textContent='Order';
+    b2.onclick = ()=> goOrder(it);
+    actions.append(b1,b2); card.appendChild(actions);
+    histBody.appendChild(card);
   });
 }
+function openImage(src){ const w=window.open('','_blank'); if(!w){alert('Pop-up blocked'); return;} w.document.write(`<title>Preview</title><img src="${src}" style="max-width:100%;display:block;margin:0 auto"/>`); }
+function goOrder(item){
+  // empaquetar y enviar a orders.html
+  const payload = {
+    product: currentChip?.name || 'Generated',
+    ref: currentChip?.ref || '',
+    prompt: item.prompt || '',
+    image: item.image || '',
+    when: item.when || Date.now()
+  };
+  try{ sessionStorage.setItem('novaai_order', JSON.stringify(payload)); }catch{}
+  location.assign('/orders.html');
+}
 
-/* ===== Init ===== */
+/* ======= CHIP (producto) ======= */
+let currentChip = null; // {name, ref (original), thumb (resolved)}
+function renderChip(){
+  chip.innerHTML = '';
+  if(!currentChip) return;
+  const span = document.createElement('span'); span.className='chip';
+  const im = document.createElement('img'); im.src=currentChip.thumb||currentChip.ref; im.alt='thumb'; im.className='thumb';
+  span.appendChild(im);
+  const txt = document.createElement('span'); txt.className='name'; txt.textContent=currentChip.name || 'Selected';
+  span.appendChild(txt);
+  const x = document.createElement('button'); x.className='x'; x.textContent='Clear chip';
+  x.onclick = ()=>{ currentChip = null; chip.innerHTML=''; };
+  span.appendChild(x);
+  chip.appendChild(span);
+}
+
+/* ======= INIT ======= */
 (async ()=>{
-  // Chip (with thumbnail)
-  const prod = (()=>{ try{return JSON.parse(sessionStorage.getItem(NVAI_KEY)||'null');}catch{return null;} })();
-  if(incoming.name || incoming.id || prod){
-    const span=document.createElement('span'); span.className='chip';
-    const thumbSrc = prod?.imageResolved || prod?.image || incoming.ref || '';
-    if(thumbSrc){
-      const im=document.createElement('img'); im.src=thumbSrc; im.alt='thumb'; im.className='thumb';
-      span.appendChild(im);
-    }
-    const txt=document.createElement('span'); txt.textContent = (incoming.name||prod?.name||incoming.id||'Product');
-    span.appendChild(txt);
-    const btnX=document.createElement('button'); btnX.type='button'; btnX.className='x'; btnX.textContent='Clear';
-    btnX.onclick=()=>{ sessionStorage.removeItem('novaai_incoming'); sessionStorage.removeItem(NVAI_KEY); chip.innerHTML=''; };
-    span.appendChild(btnX);
-    chip.innerHTML=''; chip.appendChild(span);
+  // Chip si llega de products
+  if(incoming && (incoming.ref || incoming.imageResolved || incoming.image)){
+    currentChip = {
+      name: incoming.name || incoming.id || 'Selected',
+      ref: incoming.ref || incoming.image || '',
+      thumb: incoming.imageResolved || incoming.ref || incoming.image || ''
+    };
+    renderChip();
   }
-  if(incoming.prompt && !promptBox.value) promptBox.value = incoming.prompt;
+  if(incoming?.prompt && !promptBox.value) promptBox.value = incoming.prompt;
 
   // Health
-  const h = await fetchJSON(ENDPOINT_HEALTH, {method:'GET',mode:'cors'});
-  health.textContent = h.ok ? `${h.json?.engine||'Backend'} • OK` : `Backend error: ${h.status||''} ${h.text||h.error||''}`;
+  const h = await fetchJSON(BACKEND+'/api/health', {method:'GET',mode:'cors'});
+  health.textContent = h.ok ? `Local proxy OK • ${h.json?.engine||'proxy'}` : `Proxy error: ${h.status||''} ${h.text||h.error||''}`;
+
+  renderHistory();
 })();
 
-openCatalog.onclick = ()=> location.assign('products.html');
+openCatalog.onclick = ()=> location.assign('/products.html');
+toggleHistory.onclick = ()=> drawer.classList.add('on');
+btnCloseDrawer.onclick = ()=> drawer.classList.remove('on');
+btnClearDrawer.onclick = ()=>{ saveHist([]); renderHistory(); };
+clearHistTop.onclick = ()=>{ saveHist([]); renderHistory(); };
 
-/* ===== Generate ===== */
+/* ======= Generate ======= */
 btnGen.onclick = async ()=>{
   result.innerHTML = '<div class="helper">Generating…</div>';
   msg.textContent = '';
+  btnGen.disabled = true;
 
-  // 1) pick reference: upload > incoming.ref > selectedProduct.imageResolved
-  let refData = '';
   try{
+    // Resolución de referencia: prioridad al upload; si no, a la ref del chip
+    let refData = '';
     if(upload.files && upload.files[0]) refData = await fileToDataURL(upload.files[0]);
-    else if(incoming.ref) refData = incoming.ref;
-    else {
-      try{
-        const prod = JSON.parse(sessionStorage.getItem(NVAI_KEY)||'null');
-        if(prod?.imageResolved) refData = prod.imageResolved;
-        else if(prod?.image) refData = prod.image;
-      }catch{}
+    else if(currentChip?.ref) refData = currentChip.ref;
+
+    // Negativos y prompt “locked” (solo figura/textos, mantener estilo/composición)
+    const NEGATIVES = [
+      'no background changes','no layout changes','no composition changes','no extra objects',
+      'no new elements','no 3D volume','no gradients','no realistic materials',
+      'keep same lighting','keep same line weights'
+    ].join(', ');
+
+    const user = (promptBox.value||'').trim();
+    const fontName = font.value || 'DM Sans';
+
+    // Prompt final y fidelidad:
+    // - sin prompt => imitación fiel (strength bajo)
+    // - con prompt => cambios moderados (strength medio)
+    const guided = [
+      `Only change the main figure and/or the overlaid texts.`,
+      `Keep the original style, composition, background and line weights.`,
+      `Use font: ${fontName}.`,
+      `Negative prompts: ${NEGATIVES}.`
+    ].join(' ');
+
+    const finalPrompt = user ? `${guided} Instructions: ${user}` : guided;
+    const strength = refData ? (user ? 0.35 : 0.18) : 1.0;   // prioridad a IMITACIÓN cuando no hay prompt
+    const steps = 28;
+
+    // Construir request:
+    // - si hay archivo subido => multipart (file)
+    // - si no, JSON con "ref" (dataURL o https)
+    let resp;
+    if(upload.files && upload.files[0]){
+      const fd = new FormData();
+      fd.append('file', upload.files[0]);
+      fd.append('prompt', finalPrompt);
+      fd.append('font', fontName);
+      fd.append('strength', String(strength));
+      fd.append('steps', String(steps));
+      resp = await withTimeout(fetchJSON(ENDPOINT,{method:'POST',body:fd}));
+    }else{
+      const body = { prompt: finalPrompt, font: fontName, strength, steps };
+      if(refData) body.ref = refData;
+      resp = await withTimeout(fetchJSON(ENDPOINT,{
+        method:'POST',mode:'cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      }));
     }
-  }catch(e){ console.warn('ref data error', e); }
 
-  // 2) guided prompt (lock style)
-  const NEGATIVES = [
-    'no background changes','no layout changes','no composition changes',
-    'no extra objects','no new elements','keep same line weights','keep same lighting',
-    'no gradients','no 3D volume','no photoreal backgrounds'
-  ].join(', ');
-  const user = (promptBox.value||'').trim();
-  const fontName = font.value || 'DM Sans';
+    if(!resp.ok){
+      result.innerHTML = '<div class="helper">No image.</div>';
+      msg.textContent = `Backend error ${resp.status||''}\n${resp.json?.error || resp.text || resp.error || ''}`;
+      return;
+    }
 
-  // If user empty and ref exists -> faithful imitation (proxy lo interpreta con strength bajo)
-  const guided = [
-    `Only change the main figure and/or overlaid texts.`,
-    `Keep the original style, composition, background, and line weights.`,
-    `Use font: ${fontName}.`,
-    `Negative prompts: ${NEGATIVES}.`
-  ].join(' ');
-  const finalPrompt = user ? `${guided} Instructions: ${user}` : '';
-
-  const payload = { prompt: finalPrompt, ...(refData ? { ref: refData } : {}), meta:{title: incoming.name || 'Generated'} };
-
-  const {ok,status,json,text,error} = await withTimeout(fetchJSON(ENDPOINT_GENERATE,{
-    method:'POST',mode:'cors',headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-  }), 180000);
-
-  if(!ok){
+    const data = resp.json || {};
+    if(data.image){
+      result.innerHTML = `<img src="${data.image}" alt="result">`;
+      msg.textContent = `Done. Engine: ${data.used || 'replicate:flux-schnell'} • strength=${data.strength||strength}`;
+      // guardar en historial
+      pushHist({ image:data.image, prompt:user, when:Date.now() });
+    }else{
+      result.innerHTML = '<div class="helper">No image in response.</div>';
+      msg.textContent = 'Empty output.';
+    }
+  }catch(e){
     result.innerHTML = '<div class="helper">No image.</div>';
-    msg.textContent = `Backend error ${status||''}\n${json?.error || text || error || ''}`;
-    return;
+    msg.textContent = 'Error: '+(e?.message||e);
+  }finally{
+    btnGen.disabled = false;
   }
-
-  const data = json || {};
-  const src = data.image || data.customer || data.owner || '';
-  if(src){
-    result.innerHTML = `<img src="${src}" alt="result">`;
-    addHistory(src);
-    renderHistory();
-  }else{
-    result.innerHTML = '<div class="helper">No image in response.</div>';
-  }
-  msg.textContent = `Done. Engine: ${data.used || '—'}`;
 };
 
-/* ===== Drawer / Order ===== */
-btnOrder.onclick = ()=>{
-  // if visible image -> order that; else open drawer
-  const img = document.querySelector('#result img');
-  if(img?.src){ location.assign('orders.html?img='+encodeURIComponent(img.src)); return; }
-  drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); renderHistory();
-};
-btnCloseDrawer.onclick = ()=>{ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); };
-btnClearHist.onclick = ()=>{ localStorage.setItem(HISTORY_KEY,'[]'); renderHistory(); };
-
+/* ===== UX helpers ===== */
+function setResult(src){ result.innerHTML = `<img src="${src}" alt="result">`; }
 </script>
 </body>
 </html>
