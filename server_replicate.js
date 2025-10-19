@@ -22,28 +22,34 @@ const upload = multer({
 /* ===== CONFIG ===== */
 const PORT = process.env.PORT || 10000;
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-const MODEL_VERSION = "jd96x0dyqsrm00cj1jp90zeye0";
-const PUBLIC_BASE = "https://novaai-backend-v2.onrender.com";
+const MODEL_VERSION = "jd96x0dyqsrm00cj1jp90zeye0";              // Flux-Schnell (Replicate model version)
+const PUBLIC_BASE = "https://novaai-backend-v2.onrender.com";    // TU URL en Render
 
-// Permitir IONOS + localhost para pruebas
-const ALLOWED_ORIGINS = [
+// CORS: admite ambos dominios (www y no-www) y localhost para pruebas
+const ALLOWED_ORIGINS = new Set([
   "https://negunova.com",
+  "http://negunova.com",
+  "https://www.negunova.com",
+  "http://www.negunova.com",
   "http://localhost:5500",
-];
+  "http://127.0.0.1:5500"
+]);
 
 /* ===== CORS (multi-origin + preflight) ===== */
 const corsOptions = {
   origin(origin, cb) {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    // Navegadores pueden mandar null (por ejemplo, tests locales sin origin). Permitimos null de forma segura.
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
     return cb(new Error(`CORS: origin ${origin} is not allowed`));
   },
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  maxAge: 86400,
   credentials: false,
+  maxAge: 86400,
 };
 app.use(cors(corsOptions));
-app.options("/api/*", cors(corsOptions));
+app.options("*", cors(corsOptions)); // preflight para cualquier ruta
 
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
@@ -117,7 +123,7 @@ app.get("/api/health", (req, res) =>
     ok: true,
     engine: "replicate:flux-schnell",
     version: MODEL_VERSION,
-    origins: ALLOWED_ORIGINS,
+    origins: Array.from(ALLOWED_ORIGINS),
     public_base: PUBLIC_BASE,
   })
 );
@@ -214,5 +220,5 @@ app.listen(PORT, () => {
   console.log(`✅ NovaAI Replicate proxy running on port ${PORT}`);
   console.log(`🧠 Model version: ${MODEL_VERSION}`);
   console.log(`🌐 Public base: ${PUBLIC_BASE}`);
-  console.log(`🌍 Allowed origins: ${ALLOWED_ORIGINS.join(", ")}`);
+  console.log(`🌍 Allowed origins: ${Array.from(ALLOWED_ORIGINS).join(", ")}`);
 });
