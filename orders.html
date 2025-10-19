@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Orders – NeguNova</title>
+<style>
+:root{
+  --bg:#0f1216; --panel:#171b22; --ink:#0b0f18;
+  --text:#e9eef7; --muted:#a8b2c3; --ring:#263143;
+  --brand1:#ff7a00; --brand2:#ff3a2f; --ok:#2ecc71; --warn:#f1c40f; --danger:#e74c3c;
+  --chip:#2b3347; --shadow:0 12px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial}
+a{color:#fff}
+.header{background:linear-gradient(90deg,var(--brand1),var(--brand2));padding:12px 16px;display:flex;gap:12px;align-items:center;position:sticky;top:0;z-index:50}
+.header a{background:rgba(255,255,255,.15);padding:6px 10px;border-radius:10px;text-decoration:none;font-weight:700}
+.header a.active{background:#fff;color:#141414}
+.wrap{max-width:1200px;margin:18px auto;padding:0 16px}
+.grid{display:grid;grid-template-columns:1.05fr 1fr;gap:16px}
+@media (max-width:960px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--ring);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+h3{margin:0 0 8px}
+.field{display:grid;gap:6px;margin:10px 0}
+label{font-size:12px;color:var(--muted)}
+input[type="text"],input[type="email"],input[type="tel"],input[type="number"],input[type="url"],textarea,select{
+  background:#0f151e;border:1px solid var(--ring);color:#e9eef7;border-radius:10px;padding:10px;width:100%
+}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{border:none;border-radius:12px;padding:10px 14px;color:#fff;background:#263142;cursor:pointer;transition:.2s transform,.2s opacity}
+.btn:hover{transform:translateY(-1px);opacity:.95}
+.btn.primary{background:linear-gradient(90deg,#ff7a00,#ff3a2f)}
+.btn.ok{background:linear-gradient(90deg,#27ae60,#1abc9c)}
+.btn.warn{background:#f1c40f;color:#141414;font-weight:800}
+.btn.ghost{background:transparent;border:1px solid var(--ring)}
+.btn.danger{background:#e74c3c}
+.helper{color:var(--muted);font-size:12px}
+
+.box{background:var(--ink);border:1px solid var(--ring);border-radius:12px;padding:10px}
+.preview{display:grid;grid-template-columns:1fr;gap:10px}
+.imgbox{background:#0a0f18;border:1px solid var(--ring);border-radius:12px;min-height:340px;display:flex;justify-content:center;align-items:center;overflow:hidden}
+.imgbox img{max-width:100%;max-height:100%;display:block}
+.chip{display:inline-flex;gap:8px;align-items:center;background:var(--chip);border:1px solid var(--ring);border-radius:999px;padding:6px 10px;margin:6px 0}
+.chip img{width:28px;height:28px;object-fit:cover;border-radius:6px}
+.chip .name{font-weight:700}
+.out{background:#0f151e;border:1px solid var(--ring);border-radius:12px;padding:10px;margin-top:10px;white-space:pre-wrap}
+
+.totals{background:#0f151e;border:1px solid var(--ring);border-radius:12px;padding:10px}
+.totals table{width:100%;border-collapse:collapse}
+.totals td{padding:6px 0}
+.totals td:last-child{text-align:right}
+.totals .grand{font-weight:800;border-top:1px solid var(--ring);padding-top:8px;margin-top:4px}
+
+.toast{position:fixed;left:20px;bottom:20px;background:#0f151e;border:1px solid #303d52;color:#eaf2ff;padding:10px 12px;border-radius:10px;display:none;z-index:120}
+.toast.on{display:block}
+
+/* Modal mini-gallery (NovaAI history) */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;z-index:120}
+.modal.on{display:grid}
+.modal .card{width:min(880px,94vw);max-height:92vh;background:#121821;border:1px solid #2a3547;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.45);padding:12px;display:flex;flex-direction:column}
+.modal .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.modal .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;overflow:auto}
+.modal .thumb{border:1px solid #2a3547;border-radius:12px;overflow:hidden;background:#0b0f18}
+.modal .thumb img{width:100%;height:180px;object-fit:cover;display:block}
+.modal .thumb .bar{display:flex;gap:6px;padding:6px;background:#131a27;border-top:1px solid #2a3547}
+.modal .thumb .btn{flex:1}
+
+@media print{
+  body{background:#fff;color:#000}
+  .header, .btn, .toast, .modal{display:none !important}
+  .panel{border:1px solid #aaa;box-shadow:none}
+  .grid{grid-template-columns:1fr 1fr}
+  .out{white-space:normal}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a href="home.html">Home</a>
+  <a href="products.html">Products</a>
+  <a href="novaai.html">NovaAI</a>
+  <a href="orders.html" class="active">Orders</a>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+
+    <!-- LEFT: Order builder -->
+    <section class="panel">
+      <h3>Order</h3>
+      <div id="prodChip"></div>
+
+      <div class="field">
+        <label>Selected image</label>
+        <div class="preview">
+          <div id="imgPreview" class="imgbox"><div class="helper">No image selected yet.</div></div>
+          <div class="row">
+            <button id="btnPickFromHistory" class="btn">Pick from NovaAI history</button>
+            <button id="btnChangeImage" class="btn ghost">Change via URL</button>
+            <input id="imgUrl" type="url" placeholder="https:// or data:image/... (paste and press Apply)" style="flex:1;display:none">
+            <button id="btnApplyUrl" class="btn ok" style="display:none">Apply</button>
+            <button id="btnOpenNovaAI" class="btn primary">Open NovaAI</button>
+          </div>
+        </div>
+        <div class="helper">Tip: Use NovaAI to generate/edit, then click Order from the History drawer, or paste a direct URL/dataURL here.</div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:1">
+          <label>Customer name</label>
+          <input id="custName" type="text" placeholder="Full name">
+        </div>
+        <div class="field" style="flex:1">
+          <label>Email</label>
+          <input id="custEmail" type="email" placeholder="name@email.com">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:1">
+          <label>Phone</label>
+          <input id="custPhone" type="tel" placeholder="+1 555-123-4567">
+        </div>
+        <div class="field" style="flex:1">
+          <label>Engraving text (optional)</label>
+          <input id="engrave" type="text" placeholder="e.g., ANA & LUIS 2025">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:1">
+          <label>Font</label>
+          <select id="font">
+            <option>DM Sans</option>
+            <option>Montserrat</option>
+            <option>Poppins</option>
+            <option>Roboto</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1">
+          <label>Size</label>
+          <input id="size" type="text" placeholder="e.g., 165×195mm">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:1">
+          <label>Quantity</label>
+          <input id="qty" type="number" min="1" step="1" value="1">
+        </div>
+        <div class="field" style="flex:1">
+          <label>Unit price (USD)</label>
+          <input id="price" type="number" min="0" step="0.01" value="39">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Shipping</label>
+        <div class="row">
+          <label><input type="radio" name="ship" value="pickup" checked> Pickup (free)</label>
+          <label><input type="radio" name="ship" value="flat"> Flat rate</label>
+          <label><input type="radio" name="ship" value="custom"> Custom</label>
+          <input id="shipCost" type="number" min="0" step="0.01" value="6.99" style="width:140px">
+        </div>
+        <div id="shipAddrWrap" class="row" style="display:none">
+          <input id="addr1" type="text" placeholder="Address line 1" style="flex:2">
+          <input id="addr2" type="text" placeholder="Address line 2" style="flex:1">
+        </div>
+        <div class="row" id="shipAddrWrap2" style="display:none">
+          <input id="city" type="text" placeholder="City" style="flex:1">
+          <input id="state" type="text" placeholder="State" style="flex:1">
+          <input id="zip" type="text" placeholder="ZIP" style="flex:1">
+          <input id="country" type="text" placeholder="Country" style="flex:1">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:1">
+          <label>Coupon</label>
+          <input id="coupon" type="text" placeholder="e.g., NEGU10">
+        </div>
+        <div class="field" style="flex:1">
+          <label>Notes</label>
+          <input id="notes" type="text" placeholder="Optional notes for the maker">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Payment</label>
+        <div class="row">
+          <label><input type="radio" name="pay" value="pickup" checked> Pay on pickup</label>
+          <label><input type="radio" name="pay" value="card"> Card (Stripe Checkout)</label>
+          <label><input type="radio" name="pay" value="paypal"> PayPal</label>
+        </div>
+        <div class="row">
+          <a id="payStripe" class="btn ghost" href="#" target="_blank">Open Stripe checkout</a>
+          <a id="payPayPal" class="btn ghost" href="#" target="_blank">Open PayPal</a>
+          <span class="helper">Replace these links when you enable real payments.</span>
+        </div>
+      </div>
+
+      <div class="row" style="justify-content:flex-end;margin-top:8px">
+        <button id="btnClear" class="btn ghost">Clear form</button>
+        <button id="btnPlace" class="btn ok">Place order</button>
+      </div>
+      <div id="toast" class="toast"></div>
+    </section>
+
+    <!-- RIGHT: Summary / Receipt -->
+    <section class="panel">
+      <h3>Summary</h3>
+      <div class="box" id="summaryBox">
+        <div><strong>Order ID:</strong> <span id="orderId">—</span></div>
+        <div><strong>Customer:</strong> <span id="sumName">—</span> · <span id="sumEmail">—</span></div>
+        <div><strong>Product:</strong> <span id="sumProd">—</span></div>
+        <div><strong>Font:</strong> <span id="sumFont">—</span> · <strong>Engraving:</strong> <span id="sumEngrave">—</span></div>
+        <div class="row" style="margin-top:8px">
+          <div class="imgbox" style="flex:1"><img id="sumImg" alt="preview" style="display:none"></div>
+        </div>
+
+        <div class="totals" style="margin-top:10px">
+          <table>
+            <tbody>
+              <tr><td>Qty × Unit</td><td id="sumQtyUnit">$0.00</td></tr>
+              <tr><td>Discount</td><td id="sumDisc">-$0.00</td></tr>
+              <tr><td>Shipping</td><td id="sumShip">$0.00</td></tr>
+              <tr><td>Tax</td><td id="sumTax">$0.00</td></tr>
+              <tr><td class="grand">Total</td><td class="grand" id="sumTotal">$0.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="row" style="margin-top:8px;justify-content:flex-end">
+          <button id="btnPrint" class="btn">Print receipt</button>
+        </div>
+      </div>
+
+      <div class="out" id="log"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- Modal: pick from NovaAI history -->
+<div id="modal" class="modal" aria-hidden="true">
+  <div class="card">
+    <div class="head">
+      <div><strong>Pick from NovaAI history</strong></div>
+      <div class="row">
+        <button id="btnModalClose" class="btn ghost">Close</button>
+      </div>
+    </div>
+    <div id="histGrid" class="grid"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+/* ====== Constants ====== */
+const NVAI_KEY='novaai:selectedProduct';
+const HISTORY_KEY='novaai:history:v2';
+const TAX_RATE = 0.0725;  // 7.25% example; adjust to your locale
+const FLAT_SHIP = 6.99;   // default flat
+const COUPONS = { 'NEGU10': 0.10, 'WELCOME5': 0.05 }; // % discounts
+
+/* ====== DOM ====== */
+const prodChip = document.getElementById('prodChip');
+const imgPreview = document.getElementById('imgPreview');
+const btnPickFromHistory = document.getElementById('btnPickFromHistory');
+const btnOpenNovaAI = document.getElementById('btnOpenNovaAI');
+const btnChangeImage = document.getElementById('btnChangeImage');
+const imgUrl = document.getElementById('imgUrl');
+const btnApplyUrl = document.getElementById('btnApplyUrl');
+
+const custName = document.getElementById('custName');
+const custEmail = document.getElementById('custEmail');
+const custPhone = document.getElementById('custPhone');
+const engrave = document.getElementById('engrave');
+const font = document.getElementById('font');
+const size = document.getElementById('size');
+const qty = document.getElementById('qty');
+const price = document.getElementById('price');
+
+const shipCost = document.getElementById('shipCost');
+const shipAddrWrap = document.getElementById('shipAddrWrap');
+const shipAddrWrap2 = document.getElementById('shipAddrWrap2');
+const addr1 = document.getElementById('addr1');
+const addr2 = document.getElementById('addr2');
+const city = document.getElementById('city');
+const state = document.getElementById('state');
+const zip = document.getElementById('zip');
+const country = document.getElementById('country');
+
+const coupon = document.getElementById('coupon');
+const notes = document.getElementById('notes');
+
+const payStripe = document.getElementById('payStripe');
+const payPayPal = document.getElementById('payPayPal');
+
+const btnClear = document.getElementById('btnClear');
+const btnPlace = document.getElementById('btnPlace');
+const toast = document.getElementById('toast');
+
+const orderId = document.getElementById('orderId');
+const sumName = document.getElementById('sumName');
+const sumEmail = document.getElementById('sumEmail');
+const sumProd = document.getElementById('sumProd');
+const sumFont = document.getElementById('sumFont');
+const sumEngrave = document.getElementById('sumEngrave');
+const sumImg = document.getElementById('sumImg');
+const sumQtyUnit = document.getElementById('sumQtyUnit');
+const sumDisc = document.getElementById('sumDisc');
+const sumShip = document.getElementById('sumShip');
+const sumTax = document.getElementById('sumTax');
+const sumTotal = document.getElementById('sumTotal');
+
+const log = document.getElementById('log');
+
+const modal = document.getElementById('modal');
+const btnModalClose = document.getElementById('btnModalClose');
+const histGrid = document.getElementById('histGrid');
+
+/* ====== State ====== */
+let selectedImage = '';
+let product = null;
+
+/* ====== Helpers ====== */
+function qs(name){ const u=new URLSearchParams(location.search); return u.get(name); }
+function showToast(t){ toast.textContent=t; toast.classList.add('on'); setTimeout(()=>toast.classList.remove('on'), 1600); }
+function fmt(n){ return '$'+Number(n||0).toFixed(2); }
+function nowId(){ return 'NN-'+Date.now().toString(36).toUpperCase(); }
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]'); }catch{ return []; } }
+function setPreview(src){
+  selectedImage = src||'';
+  if(!selectedImage){ imgPreview.innerHTML = '<div class="helper">No image selected yet.</div>'; sumImg.style.display='none'; sumImg.src=''; return; }
+  imgPreview.innerHTML = '<img alt="selected" src="'+selectedImage+'">';
+  sumImg.src = selectedImage; sumImg.style.display='block';
+}
+function renderChip(){
+  prodChip.innerHTML='';
+  if(!product) return;
+  const chip=document.createElement('div'); chip.className='chip';
+  const im=document.createElement('img'); im.alt='thumb'; im.src=product.imageResolved || product.image || product.ref || '';
+  chip.appendChild(im);
+  const name=document.createElement('span'); name.className='name'; name.textContent=product.name || product.id || 'Selected product';
+  chip.appendChild(name);
+  const small=document.createElement('span'); small.style.color='#cfd7e6'; small.textContent = ' · '+(product.code||'')+' '+(product.size||'');
+  chip.appendChild(small);
+  prodChip.appendChild(chip);
+}
+
+/* ====== Init incoming ====== */
+(function initIncoming(){
+  // Product from session
+  try{ product = JSON.parse(sessionStorage.getItem(NVAI_KEY)||'null'); }catch{}
+
+  // Fill defaults from product
+  if(product){
+    if(product.size) size.value = product.size;
+    if(Number(product.price)) price.value = Number(product.price);
+  }
+
+  // Image priority: ?img -> ?imgs[0] -> last history -> product image
+  const imgParam = qs('img');
+  const imgsParam = qs('imgs');
+  if(imgParam){
+    setPreview(decodeURIComponent(imgParam));
+  }else if(imgsParam){
+    try{ const arr = JSON.parse(decodeURIComponent(imgsParam)); if(arr.length) setPreview(arr[0]); }catch{}
+  }
+  if(!selectedImage){
+    const hist = loadHistory();
+    if(hist.length) setPreview(hist[0].src);
+  }
+  if(!selectedImage && product){
+    const fall = product.imageResolved || product.image || product.ref || '';
+    if(fall) setPreview(fall);
+  }
+  renderChip();
+})();
+
+/* ====== NovaAI / History modal ====== */
+btnOpenNovaAI.onclick = ()=> location.assign('novaai.html');
+
+btnPickFromHistory.onclick = ()=>{
+  const hist = loadHistory();
+  histGrid.innerHTML='';
+  if(!hist.length){
+    histGrid.innerHTML = '<div class="helper" style="grid-column:1/-1">No images in NovaAI history yet.</div>';
+  }else{
+    hist.forEach((it,idx)=>{
+      const card=document.createElement('div'); card.className='thumb';
+      card.innerHTML=`
+        <img alt="h${idx}" src="${it.src}">
+        <div class="bar">
+          <button class="btn ok" data-x="use">Use</button>
+          <button class="btn" data-x="view">View</button>
+        </div>`;
+      card.querySelector('[data-x="use"]').onclick=()=>{ setPreview(it.src); modal.classList.remove('on'); };
+      card.querySelector('[data-x="view"]').onclick=()=>{ const w=open('about:blank','_blank'); w.document.write('<img style="max-width:100%" src="'+it.src+'">'); w.document.close(); };
+      histGrid.appendChild(card);
+    });
+  }
+  modal.classList.add('on'); modal.setAttribute('aria-hidden','false');
+};
+btnModalClose.onclick = ()=>{ modal.classList.remove('on'); modal.setAttribute('aria-hidden','true'); };
+
+/* ====== Change via URL ====== */
+btnChangeImage.onclick = ()=>{
+  imgUrl.style.display='block';
+  btnApplyUrl.style.display='inline-block';
+  imgUrl.focus();
+};
+btnApplyUrl.onclick = ()=>{
+  const u=(imgUrl.value||'').trim(); if(!u) return;
+  setPreview(u); showToast('Image updated'); imgUrl.value=''; imgUrl.style.display='none'; btnApplyUrl.style.display='none';
+};
+
+/* ====== Shipping UI ====== */
+function currentShipMode(){ const el=document.querySelector('input[name="ship"]:checked'); return el?el.value:'pickup'; }
+function syncShippingUI(){
+  const mode=currentShipMode();
+  if(mode==='pickup'){
+    shipCost.value='0.00';
+    shipAddrWrap.style.display='none';
+    shipAddrWrap2.style.display='none';
+  }else if(mode==='flat'){
+    shipCost.value=String(FLAT_SHIP.toFixed(2));
+    shipAddrWrap.style.display='flex';
+    shipAddrWrap2.style.display='flex';
+  }else{
+    // custom
+    shipAddrWrap.style.display='flex';
+    shipAddrWrap2.style.display='flex';
+  }
+  recalc();
+}
+document.querySelectorAll('input[name="ship"]').forEach(r=> r.addEventListener('change', syncShippingUI));
+shipCost.addEventListener('input', recalc);
+
+/* ====== Totals ====== */
+function getDiscount(subtotal){
+  const code=(coupon.value||'').trim().toUpperCase();
+  const pct=COUPONS[code]||0; 
+  return subtotal * pct;
+}
+function recalc(){
+  const q= Math.max(1, parseInt(qty.value||'1',10));
+  const u= Math.max(0, Number(price.value||'0'));
+  const ship = Math.max(0, Number(shipCost.value||'0'));
+  const sub = q*u;
+  const disc= getDiscount(sub);
+  const taxed = Math.max(0, sub - disc);
+  const tax = +(taxed*TAX_RATE).toFixed(2);
+  const total = +(taxed + tax + ship).toFixed(2);
+
+  sumQtyUnit.textContent = `${q} × ${fmt(u)} = ${fmt(sub)}`;
+  sumDisc.textContent = disc ? `-${fmt(disc)}` : '-$0.00';
+  sumShip.textContent = fmt(ship);
+  sumTax.textContent = fmt(tax);
+  sumTotal.textContent = fmt(total);
+
+  // Summary text
+  sumName.textContent = (custName.value||'—');
+  sumEmail.textContent = (custEmail.value||'—');
+  sumProd.textContent = product ? `${product.name||'Product'} (${product.code||''})` : 'Custom product';
+  sumFont.textContent = font.value||'—';
+  sumEngrave.textContent = (engrave.value||'—');
+}
+['input','change'].forEach(ev=>{
+  [custName,custEmail,engrave,font,qty,price,coupon].forEach(el=> el.addEventListener(ev,recalc));
+  [addr1,addr2,city,state,zip,country].forEach(el=> el.addEventListener(ev, ()=>{/* no-op */}));
+});
+
+/* ====== Payment links (placeholders) ====== */
+function syncPaymentLinks(){
+  const totalText = sumTotal.textContent.replace(/^\$/,'');
+  // Replace with your real checkout URLs (server-side)
+  payStripe.href = `https://checkout.stripe.com/pay/test?amount=${encodeURIComponent(totalText)}`;
+  payPayPal.href = `https://www.paypal.com/checkoutnow?amount=${encodeURIComponent(totalText)}`;
+}
+
+/* ====== Place order (local storage) ====== */
+function buildOrder(){
+  const mode=currentShipMode();
+  const q= Math.max(1, parseInt(qty.value||'1',10));
+  const u= Math.max(0, Number(price.value||'0'));
+  const sub = q*u;
+  const disc= getDiscount(sub);
+  const ship = Math.max(0, Number(shipCost.value||'0'));
+  const tax = +(Math.max(0, (sub-disc))*TAX_RATE).toFixed(2);
+  const total = +(Math.max(0, (sub-disc)) + tax + ship).toFixed(2);
+
+  return {
+    id: orderId.textContent || nowId(),
+    at: new Date().toISOString(),
+    customer: { name:custName.value.trim(), email:custEmail.value.trim(), phone:custPhone.value.trim() },
+    product: product || null,
+    engraving: { text: engrave.value.trim(), font: font.value },
+    size: size.value.trim(),
+    qty: q, unit: u, subtotal: sub, discount: disc, shipping: ship, tax, total,
+    coupon: (coupon.value||'').trim().toUpperCase(),
+    shipping_mode: mode,
+    address: (mode==='pickup') ? null : {
+      line1: addr1.value.trim(), line2: addr2.value.trim(),
+      city: city.value.trim(), state: state.value.trim(), zip: zip.value.trim(), country: country.value.trim()
+    },
+    notes: notes.value.trim(),
+    image: selectedImage || null,
+    paid: false, payment_method: document.querySelector('input[name="pay"]:checked')?.value || 'pickup'
+  };
+}
+function saveOrder(order){
+  const key='orders:v1';
+  let list=[]; try{ list=JSON.parse(localStorage.getItem(key)||'[]'); }catch{}
+  // Upsert by id
+  const idx=list.findIndex(x=>x.id===order.id);
+  if(idx>=0) list[idx]=order; else list.unshift(order);
+  localStorage.setItem(key, JSON.stringify(list));
+}
+function loadOrder(id){
+  const key='orders:v1';
+  let list=[]; try{ list=JSON.parse(localStorage.getItem(key)||'[]'); }catch{}
+  return list.find(x=>x.id===id)||null;
+}
+
+/* ====== Buttons ====== */
+document.getElementById('btnPrint').onclick=()=>{ window.print(); };
+
+btnClear.onclick = ()=>{
+  if(!confirm('Clear all fields?')) return;
+  document.querySelectorAll('input[type="text"],input[type="email"],input[type="tel"],input[type="url"]').forEach(i=>i.value='');
+  document.querySelectorAll('textarea').forEach(i=>i.value='');
+  coupon.value=''; qty.value='1'; price.value='39'; font.value='DM Sans'; size.value='';
+  document.querySelector('input[name="ship"][value="pickup"]').checked = true;
+  syncShippingUI();
+  recalc();
+  showToast('Form cleared');
+};
+
+btnPlace.onclick = ()=>{
+  if(!selectedImage){ showToast('Select an image first'); return; }
+  if(!(custName.value.trim() && custEmail.value.trim())){ showToast('Name and email are required'); return; }
+
+  const order=buildOrder();
+  if(orderId.textContent==='—' || !orderId.textContent) order.id = nowId();
+  orderId.textContent = order.id;
+
+  saveOrder(order);
+  showToast('Order saved locally');
+  log.textContent = 'Saved order:\n'+JSON.stringify(order,null,2);
+  syncPaymentLinks();
+};
+
+/* ====== Start ====== */
+(function start(){
+  orderId.textContent='—';
+  // default shipping UI
+  shipCost.value = FLAT_SHIP.toFixed(2);
+  syncShippingUI();
+  // initial calc
+  recalc();
+  syncPaymentLinks();
+})();
+})();
+</script>
+
+</body>
+</html>

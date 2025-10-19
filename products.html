@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Products – NeguNova</title>
+<style>
+:root{
+  --bg:#0f1216; --panel:#171b22; --muted:#9aa3b2; --text:#e9eef7;
+  --brand1:#ff7a00; --brand2:#ff3a2f; --ok:#2ecc71; --warn:#f39c12; --danger:#e74c3c;
+  --card:#1a1f27; --ring:#2b3546; --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,Segoe UI,Inter,Roboto,Arial}
+
+/* Header */
+.header{background:linear-gradient(90deg,var(--brand1),var(--brand2));padding:14px 22px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:70}
+.brand{font-weight:800;letter-spacing:.2px;font-size:20px}
+.nav{margin-left:auto;display:flex;gap:10px}
+.nav a{color:#fff;text-decoration:none;padding:8px 14px;border-radius:10px;opacity:.9}
+.nav a:hover{background:rgba(255,255,255,.15)}
+.nav a.active{background:rgba(0,0,0,.2)}
+
+/* Layout */
+.wrap{max-width:1200px;margin:22px auto;padding:0 16px}
+
+/* Toolbar */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.btn{border:none;border-radius:12px;padding:10px 14px;color:#fff;background:#263142;cursor:pointer;box-shadow:var(--shadow);transition:.2s transform,.2s opacity}
+.btn:hover{transform:translateY(-1px);opacity:.95}
+.btn.primary{background:linear-gradient(90deg,#ff7a00,#ff3a2f)}
+.btn.ok{background:linear-gradient(90deg,#27ae60,#1abc9c)}
+.btn.warn{background:linear-gradient(90deg,#f39c12,#f1c40f)}
+.btn.danger{background:#e74c3c}
+.badge{background:#222a36;color:#bcd;padding:8px 12px;border-radius:999px;font-weight:700;letter-spacing:.3px}
+.search{display:flex;gap:8px;align-items:center}
+.search input{background:var(--panel);color:var(--text);border:1px solid #243041;border-radius:12px;padding:10px 12px;min-width:260px}
+
+/* Category */
+.cat{margin:26px 0;background:linear-gradient(180deg,#12171f,#0f141b);border:1px solid #232c3c;border-radius:18px;padding:18px}
+.cat-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.cat-title{font-weight:800;font-size:20px}
+.cat-head .muted{color:var(--muted);font-size:13px}
+.cat-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){.grid{grid-template-columns:1fr}}
+
+/* Card */
+.card{background:var(--card);border:1px solid #232c3c;border-radius:18px;overflow:hidden;position:relative;box-shadow:var(--shadow)}
+.media{position:relative;aspect-ratio:4/3;background:#0b0e13}
+.media img{width:100%;height:100%;object-fit:cover;display:block}
+.info{padding:12px 14px 16px}
+.title{font-weight:800;letter-spacing:.2px}
+.meta{display:flex;gap:10px;margin:6px 0 10px}
+.pill{background:#1f2631;color:#cfe;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid var(--ring)}
+.price{font-weight:800;letter-spacing:.3px;margin-top:4px}
+.actions{display:flex;gap:10px;margin-top:10px}
+.actions .btn{padding:8px 12px;border-radius:10px}
+
+/* Admin chips */
+.edit-chip{position:absolute;top:10px;right:10px;background:#3a4457;border:1px solid #4a5670;font-weight:800;padding:8px 12px;border-radius:12px;display:none}
+body.admin .edit-chip{display:block}
+.selbox{position:absolute;top:10px;left:10px;display:none;background:rgba(15,18,25,.7);padding:6px 8px;border-radius:10px;border:1px solid #2c384b;font-size:12px}
+.selbox input{vertical-align:middle;margin-right:6px}
+body.admin .selbox{display:block}
+
+/* Toast */
+.toast{position:fixed;left:20px;bottom:20px;background:#0f151e;border:1px solid #303d52;color:#eaf2ff;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow);display:none;z-index:120}
+.toast.on{display:block}
+
+/* Modal editor */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:120}
+.modal.on{display:grid}
+.modal .box{width:min(880px,94vw);background:#121821;border:1px solid #2a3547;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.45);padding:18px;display:grid;grid-template-columns:1.05fr 1fr;gap:18px}
+.modal h3{margin:0 0 8px}
+.form{display:grid;gap:10px}
+.form .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form label{font-size:13px;color:#9aa3b2}
+.form input,.form select,.form textarea{background:#0f151e;border:1px solid #2c3a50;color:#e9eef7;border-radius:10px;padding:9px}
+.form textarea{min-height:78px}
+.gallery-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gallery-mini .thumb{position:relative;border:1px solid #2c3a50;border-radius:10px;overflow:hidden;background:#0b0e13;aspect-ratio:4/3}
+.gallery-mini img{width:100%;height:100%;object-fit:cover;display:block}
+.gallery-mini .mark{position:absolute;top:6px;left:6px;background:#0b1120cc;border:1px solid #2c3a50;color:#dfe7ff;padding:2px 6px;border-radius:8px;font-size:11px}
+.gallery-mini .act{position:absolute;top:6px;right:6px;display:flex;gap:6px}
+.gallery-mini .act button{padding:4px 7px;border-radius:8px;border:1px solid #2c3a50;background:#182131;color:#dfe7ff}
+.actions-bar{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="brand">NeguNova</div>
+  <nav class="nav">
+    <a href="home.html">Home</a>
+    <a href="products.html" class="active">Products</a>
+    <a href="3d.html">3D Printing</a>
+    <a href="tshirts.html">T-Shirts</a>
+    <a href="novaai.html">NovaAI</a>
+    <a href="orders.html">Orders</a>
+    <a href="contacts.html">Contacts</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <div class="search">
+      <input id="q" type="search" placeholder="Search by name, code or category…">
+      <button class="btn" id="doSearch">Search</button>
+    </div>
+
+    <span class="badge">Admin: <span id="adminState">OFF</span></span>
+    <button class="btn" id="toggleAdmin" title="Alt+A">Toggle</button>
+    <button class="btn" id="addCat">+ Category</button>
+
+    <!-- Global export/import -->
+    <button class="btn ok" id="exportAll">Export catalog</button>
+    <button class="btn warn" id="importAll">Import catalog</button>
+    <input type="file" id="fileAll" accept=".json,.csv" style="display:none">
+  </div>
+
+  <div id="cats"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Product Editor Modal -->
+<div id="editorModal" class="modal" aria-hidden="true">
+  <div class="box">
+    <div class="form">
+      <h3>Edit product</h3>
+      <div class="row">
+        <div>
+          <label>Name</label>
+          <input id="edName" type="text">
+        </div>
+        <div>
+          <label>Category</label>
+          <select id="edCategory"></select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Code</label>
+          <input id="edCode" type="text">
+        </div>
+        <div>
+          <label>Size</label>
+          <input id="edSize" type="text" placeholder="e.g. 200×200mm">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Price</label>
+          <input id="edPrice" type="number" step="0.01" min="0">
+        </div>
+        <div>
+          <label>Base prompt (optional)</label>
+          <input id="edPrompt" type="text" placeholder="Design for …">
+        </div>
+      </div>
+
+      <div>
+        <label>Images</label>
+        <div class="gallery-mini" id="edGal"></div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Add by URL</label>
+          <div style="display:flex;gap:8px">
+            <input id="edImgUrl" type="url" placeholder="https://…">
+            <button id="btnAddUrl" class="btn">Add</button>
+          </div>
+        </div>
+        <div>
+          <label>Add from file</label>
+          <div style="display:flex;gap:8px">
+            <input id="edImgFile" type="file" accept="image/*">
+            <button id="btnAddFile" class="btn">Upload</button>
+          </div>
+          <div class="helper" style="color:#9aa3b2;font-size:12px;margin-top:6px">
+            Files are stored in IndexedDB (browser).
+          </div>
+        </div>
+      </div>
+
+      <div class="actions-bar">
+        <button id="btnDelete" class="btn danger">Delete</button>
+        <button id="btnCancel" class="btn">Cancel</button>
+        <button id="btnSave" class="btn ok">Save</button>
+      </div>
+    </div>
+
+    <div>
+      <label style="font-size:13px;color:#9aa3b2">Preview</label>
+      <div class="media" style="border-radius:12px;overflow:hidden;border:1px solid #2a3547">
+        <img id="edPreview" alt="preview" style="width:100%;height:100%;object-fit:cover;display:block">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  /* ========= keys ========= */
+  const LS_KEY='nn_catalog_v2';
+  const LS_ADMIN='nn_admin';
+  const NVAI_KEY='novaai:selectedProduct';
+
+  /* ========= state ========= */
+  let catalog={categories:[]};
+  let admin=false;
+
+  /* ========= DOM ========= */
+  const catsEl=document.getElementById('cats');
+  const adminStateEl=document.getElementById('adminState');
+  const toastEl=document.getElementById('toast');
+
+  /* ========= helpers ========= */
+  const uid=()=>Math.random().toString(36).slice(2,10);
+  const showToast=(t)=>{toastEl.textContent=t;toastEl.classList.add('on');setTimeout(()=>toastEl.classList.remove('on'),2000);};
+  const escapeHTML=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const priceFmt=n=>'$'+(Number(n||0).toFixed(2));
+
+  /* === image patch: https abs + fallback + idb === */
+  function toAbsHttps(url){
+    if(!url) return '';
+    try{
+      if(url.startsWith('idb:')||url.startsWith('data:')||url.startsWith('blob:')) return url;
+      if(/^https?:\/\//i.test(url)||/^\/\//.test(url)){ const u=new URL(url,location.origin); u.protocol='https:'; return u.href; }
+      if(url.startsWith('/')){ const u=new URL(url,location.origin); u.protocol='https:'; return u.href; }
+      return new URL(url,location.origin+'/').href;
+    }catch{ return url; }
+  }
+  const FALLBACK_IMG='data:image/svg+xml;base64,'+btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360"><rect width="100%" height="100%" fill="#0b0e13"/><text x="50%" y="50%" fill="#8894a6" font-family="system-ui" font-size="16" dominant-baseline="middle" text-anchor="middle">image not found</text></svg>`);
+  async function idbGetBlob(id){
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open('NeguNova',1);
+      req.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains('imgs'))db.createObjectStore('imgs',{keyPath:'k'});};
+      req.onerror=()=>reject(req.error);
+      req.onsuccess=()=>{
+        const db=req.result,tx=db.transaction('imgs','readonly'),g=tx.objectStore('imgs').get(id.replace(/^idb:/,''));
+        g.onsuccess=()=>resolve(g.result?.blob||null); g.onerror=()=>reject(g.error);
+      };
+    });
+  }
+  async function resolveImageSrc(ref){
+    try{
+      if(!ref) return '';
+      if(/^idb:/.test(ref)){ const b=await idbGetBlob(ref); return b?URL.createObjectURL(b):''; }
+      return ref;
+    }catch{ return ''; }
+  }
+
+  /* ========= admin ========= */
+  function setAdmin(on){
+    admin=!!on; document.body.classList.toggle('admin',admin);
+    localStorage.setItem(LS_ADMIN,admin?'1':'0'); adminStateEl.textContent=admin?'ON':'OFF';
+    render();
+  }
+  function toggleAdmin(){
+    if(admin){ setAdmin(false); return; }
+    const pwd=prompt('Admin password'); if(pwd==='2468') setAdmin(true); else if(pwd!==null) alert('Wrong password');
+  }
+
+  /* ========= storage ========= */
+  function saveCatalog(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(catalog)); }catch{} }
+  function loadCatalog(){
+    const raw=localStorage.getItem(LS_KEY);
+    if(raw){ try{ catalog=JSON.parse(raw)||catalog; }catch{} }
+    if(!catalog.categories.length){
+      catalog.categories=[{
+        id:uid(), name:'Lamps', products:[
+          {id:uid(), name:'Giraffe 3D LAMP', price:39, code:'003', size:'165×195mm', images:['/assets/sample-giraffe.jpg'], primary:0},
+          {id:uid(), name:'Led light acrylic shoe', price:39, code:'004', size:'—', images:['/assets/sample-shoe.jpg'], primary:0},
+          {id:uid(), name:'New product', price:0, code:'—', size:'—', images:[], primary:0}
+        ]
+      }];
+      saveCatalog();
+    }
+  }
+
+  /* ========= render ========= */
+  async function render(){
+    catsEl.innerHTML='';
+    catalog.categories.forEach((cat,catIdx)=>{
+      const catBox=document.createElement('section'); catBox.className='cat';
+      catBox.innerHTML=`
+        <div class="cat-head">
+          <div class="cat-title">${escapeHTML(cat.name)}</div>
+          <div class="muted">${(cat.products||[]).length} item(s)</div>
+          <div class="cat-actions"></div>
+        </div>`;
+      const actions=catBox.querySelector('.cat-actions');
+
+      // Per-category admin controls
+      const mkBtn=(txt,cls)=>{ const b=document.createElement('button'); b.className='btn '+(cls||''); b.textContent=txt; b.style.display=admin?'inline-flex':'none'; return b; };
+
+      const btnSelAll=mkBtn('Select all','');
+      const btnClear=mkBtn('Clear','');
+      const btnDelSel=mkBtn('Delete selected','danger');
+      const btnAdd=mkBtn('+ Add product','ok');
+      const btnExp=mkBtn('Export','ok');
+      const btnImp=mkBtn('Import','warn');
+      const btnDelCat=mkBtn('Delete category','danger');
+
+      const fileCat=document.createElement('input'); fileCat.type='file'; fileCat.accept='.json,.csv'; fileCat.style.display='none';
+
+      btnSelAll.onclick=()=>{ catBox.querySelectorAll('.selbox input').forEach(cb=>cb.checked=true); };
+      btnClear.onclick=()=>{ catBox.querySelectorAll('.selbox input').forEach(cb=>cb.checked=false); };
+      btnDelSel.onclick=()=>{
+        const checks=[...catBox.querySelectorAll('.selbox input:checked')];
+        if(!checks.length) return alert('Nothing selected.');
+        if(!confirm(`Delete ${checks.length} product(s) in "${cat.name}"?`)) return;
+        const idxs=checks.map(cb=>Number(cb.dataset.prod)).sort((a,b)=>b-a);
+        idxs.forEach(i=>cat.products.splice(i,1));
+        saveCatalog(); render();
+      };
+      btnAdd.onclick=()=>{
+        const p={id:uid(), name:'New product', price:0, code:'—', size:'—', images:[], primary:0, base_prompt:''};
+        cat.products.unshift(p); saveCatalog(); openEditor(catIdx,0);
+      };
+      btnExp.onclick=()=>exportCategory(catIdx);
+      btnImp.onclick=()=>fileCat.click();
+      btnDelCat.onclick=()=>{
+        if(!confirm(`Delete category "${cat.name}" and ALL its products?`)) return;
+        catalog.categories.splice(catIdx,1); saveCatalog(); render();
+      };
+      fileCat.onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; importIntoCategory(catIdx,f).then(()=>{e.target.value='';}); };
+
+      actions.append(btnSelAll,btnClear,btnDelSel,btnAdd,btnExp,btnImp,btnDelCat,fileCat);
+
+      const grid=document.createElement('div'); grid.className='grid';
+
+      (cat.products||[]).forEach((p,prodIdx)=>{
+        const card=document.createElement('article'); card.className='card';
+
+        const media=document.createElement('div'); media.className='media';
+        const img=new Image(); img.alt=p.name||'';
+        (async()=>{
+          const raw=p.images?.[p.primary||0]||''; let url=await resolveImageSrc(raw);
+          if(url && !/^data:|^blob:/.test(url)) url=toAbsHttps(url);
+          img.src=url||FALLBACK_IMG;
+        })();
+        img.onerror=()=>img.src=FALLBACK_IMG;
+        media.appendChild(img);
+
+        const info=document.createElement('div'); info.className='info';
+        info.innerHTML=`
+          <div class="title">${escapeHTML(p.name||'Untitled')}</div>
+          <div class="meta">
+            <div class="pill">${escapeHTML(p.size||'')}</div>
+            <div class="pill">Code: ${escapeHTML(p.code||'')}</div>
+          </div>
+          <div class="price">${priceFmt(p.price)}</div>
+          <div class="actions" style="display:${admin?'none':'flex'}">
+            <button class="btn ok" data-act="order">Order</button>
+            <button class="btn primary" data-act="custom">Customize</button>
+          </div>
+          <button class="edit-chip" data-act="edit">Edit</button>
+          <label class="selbox"><input type="checkbox" data-cat="${catIdx}" data-prod="${prodIdx}"> select</label>
+        `;
+
+        /* === NEW: Order → send image + meta to Orders === */
+        info.querySelector('[data-act="order"]').onclick = async () => {
+          const ref = p.images?.[p.primary || 0] || '';
+          let imgUrl = await resolveImageSrc(ref);
+          if (!imgUrl) imgUrl = ref;
+          const absUrl = toAbsHttps(imgUrl);
+
+          const payload = {
+            id: p.id, name: p.name, code: p.code, size: p.size, price: p.price,
+            category: cat.name, image: ref, imageResolved: absUrl
+          };
+          try { sessionStorage.setItem('novaai:selectedProduct', JSON.stringify(payload)); } catch {}
+          location.href = 'orders.html?img=' + encodeURIComponent(absUrl);
+        };
+
+        /* === Customize → NovaAI (como lo tenías, con miniatura en chip) === */
+        info.querySelector('[data-act="custom"]').onclick=async()=>{
+          const ref=p.images?.[p.primary||0]||''; const imgUrl=await resolveImageSrc(ref);
+          const payload={ id:p.id,name:p.name,code:p.code,size:p.size,category:cat.name,image:ref,imageResolved:imgUrl,prompt:p.base_prompt||`Design for ${p.name}`, price:p.price };
+          try{ sessionStorage.setItem(NVAI_KEY,JSON.stringify(payload)); }catch{}
+          try{ sessionStorage.setItem('novaai_incoming', JSON.stringify({id:p.id,name:p.name,ref:ref,prompt:payload.prompt})); }catch{}
+          const q=encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(payload)))));
+          location.href='novaai.html?product='+q;
+        };
+
+        info.querySelector('[data-act="edit"]').onclick=()=>{ if(!admin) return alert('Enable Admin first'); openEditor(catIdx,prodIdx); };
+
+        card.append(media,info);
+        grid.appendChild(card);
+      });
+
+      catBox.appendChild(grid);
+      catsEl.appendChild(catBox);
+    });
+  }
+
+  /* ========= global search/admin/export ========= */
+  document.getElementById('doSearch').onclick=()=>{/* optional filter */};
+  document.getElementById('toggleAdmin').onclick=toggleAdmin;
+  document.getElementById('addCat').onclick=()=>{
+    if(!admin) return alert('Enable Admin first');
+    const name=(prompt('New category name:')||'').trim(); if(!name) return;
+    catalog.categories.push({id:uid(),name,products:[]}); saveCatalog(); render();
+  };
+
+  // Export/Import helpers
+  function dl(name, data, type='application/json'){
+    const a=document.createElement('a'); a.download=name;
+    a.href=URL.createObjectURL(new Blob([data],{type}));
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  function toCSV(cat){
+    const rows=[['name','code','price','size','images']];
+    (cat.products||[]).forEach(p=>{
+      const imgs=(p.images||[]).join('|').replaceAll('\n',' ');
+      rows.push([p.name||'',p.code||'',p.price??0,p.size||'',imgs]);
+    });
+    return rows.map(r=>r.map(v=>String(v).includes(',')?`"${String(v).replaceAll('"','""')}"`:String(v)).join(',')).join('\n');
+  }
+  function fromCSV(text){
+    const lines=text.split(/\r?\n/).filter(Boolean); if(lines.length<=1) return [];
+    const hdr=lines[0].split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+    const idx=(k)=>hdr.indexOf(k);
+    const out=[];
+    for(let i=1;i<lines.length;i++){
+      const parts=lines[i].match(/("([^"]|"")*"|[^,]+)/g)||[];
+      const val=j=>{ const s=(parts[j]||'').trim().replace(/^"|"$/g,'').replaceAll('""','"'); return s; };
+      const name=val(idx('name')); if(!name) continue;
+      const images=(val(idx('images'))||'').split('|').filter(Boolean);
+      out.push({id:uid(),name,code:val(idx('code')),price:Number(val(idx('price'))||0),size:val(idx('size')),images,primary:0,base_prompt:''});
+    }
+    return out;
+  }
+
+  function exportCategory(catIdx){
+    const cat=catalog.categories[catIdx];
+    const fmt=prompt('Export format: JSON or CSV? (default JSON)','JSON');
+    if((fmt||'').toLowerCase().startsWith('csv')){
+      dl(`${cat.name}-category.csv`, toCSV(cat), 'text/csv;charset=utf-8');
+    }else{
+      dl(`${cat.name}-category.json`, JSON.stringify(cat,null,2));
+    }
+  }
+  async function importIntoCategory(catIdx, file){
+    const text=await file.text();
+    let items=[];
+    if(file.name.toLowerCase().endsWith('.csv')) items=fromCSV(text);
+    else{
+      try{
+        const data=JSON.parse(text);
+        if(Array.isArray(data?.products)) items=data.products;
+        else if(Array.isArray(data)) items=data;
+        else return alert('Invalid JSON.');
+      }catch{ return alert('Invalid JSON.'); }
+    }
+    if(!items.length) return alert('No items to import.');
+    const cat=catalog.categories[catIdx];
+    items.forEach(p=>{ p.id=uid(); p.primary=p.primary||0; p.images=p.images||[]; cat.products.push(p); });
+    saveCatalog(); render(); showToast(`Imported ${items.length} into "${cat.name}"`);
+  }
+
+  /* ========= Editor ========= */
+  const modal=document.getElementById('editorModal');
+  const edName=document.getElementById('edName');
+  const edCategory=document.getElementById('edCategory');
+  const edCode=document.getElementById('edCode');
+  const edSize=document.getElementById('edSize');
+  const edPrice=document.getElementById('edPrice');
+  const edPrompt=document.getElementById('edPrompt');
+  const edGal=document.getElementById('edGal');
+  const edImgUrl=document.getElementById('edImgUrl');
+  const edImgFile=document.getElementById('edImgFile');
+  const btnAddUrl=document.getElementById('btnAddUrl');
+  const btnAddFile=document.getElementById('btnAddFile');
+  const btnSave=document.getElementById('btnSave');
+  const btnCancel=document.getElementById('btnCancel');
+  const btnDelete=document.getElementById('btnDelete');
+  const edPreview=document.getElementById('edPreview');
+  let edCatIdx=-1, edProdIdx=-1;
+
+  function openEditor(catIdx,prodIdx){
+    edCatIdx=catIdx; edProdIdx=prodIdx;
+    const cat=catalog.categories[catIdx]; const p=cat.products[prodIdx];
+
+    edCategory.innerHTML=catalog.categories.map((c,i)=>`<option value="${i}">${escapeHTML(c.name)}</option>`).join('');
+    edCategory.value=String(catIdx);
+
+    edName.value=p.name||''; edCode.value=p.code||''; edSize.value=p.size||''; edPrice.value=p.price??0; edPrompt.value=p.base_prompt||'';
+    renderEdGallery();
+
+    (async()=>{ const raw=p.images?.[p.primary||0]||''; let url=await resolveImageSrc(raw); if(url && !/^data:|^blob:/.test(url)) url=toAbsHttps(url); edPreview.src=url||FALLBACK_IMG; })();
+
+    modal.classList.add('on');
+  }
+  function closeEditor(){ modal.classList.remove('on'); }
+
+  function renderEdGallery(){
+    edGal.innerHTML='';
+    const p=catalog.categories[edCatIdx].products[edProdIdx];
+    (p.images||[]).forEach((r,idx)=>{
+      const item=document.createElement('div'); item.className='thumb';
+      const img=new Image();
+      (async()=>{ let url=await resolveImageSrc(r); if(url && !/^data:|^blob:/.test(url)) url=toAbsHttps(url); img.src=url||FALLBACK_IMG; })();
+      img.onerror=()=>img.src=FALLBACK_IMG;
+      item.appendChild(img);
+      const mark=document.createElement('div'); mark.className='mark'; mark.textContent=(idx===(p.primary||0))?'primary':'image'; item.appendChild(mark);
+      const act=document.createElement('div'); act.className='act';
+      const b1=document.createElement('button'); b1.textContent='Set primary'; b1.onclick=()=>{p.primary=idx;renderEdGallery();};
+      const b2=document.createElement('button'); b2.textContent='Remove'; b2.onclick=()=>{p.images.splice(idx,1); if((p.primary||0)>=p.images.length)p.primary=0; renderEdGallery();};
+      act.append(b1,b2); item.appendChild(act);
+      edGal.appendChild(item);
+    });
+  }
+  async function idbPutBlob(blob){
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open('NeguNova',1);
+      req.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains('imgs'))db.createObjectStore('imgs',{keyPath:'k'});};
+      req.onerror=()=>reject(req.error);
+      req.onsuccess=()=>{
+        const db=req.result,tx=db.transaction('imgs','readwrite');
+        const k='img_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+        tx.objectStore('imgs').put({k,blob}); tx.oncomplete=()=>resolve('idb:'+k); tx.onerror=()=>reject(tx.error);
+      };
+    });
+  }
+  btnAddUrl.onclick=()=>{ const url=(edImgUrl.value||'').trim(); if(!url) return; const p=catalog.categories[edCatIdx].products[edProdIdx]; p.images=p.images||[]; p.images.push(url); if(p.images.length===1)p.primary=0; edImgUrl.value=''; renderEdGallery(); };
+  btnAddFile.onclick=async()=>{ const f=edImgFile.files?.[0]; if(!f) return; const ref=await idbPutBlob(f); const p=catalog.categories[edCatIdx].products[edProdIdx]; p.images=p.images||[]; p.images.push(ref); if(p.images.length===1)p.primary=0; edImgFile.value=''; renderEdGallery(); };
+
+  btnCancel.onclick=closeEditor;
+  btnDelete.onclick=()=>{ if(!confirm('Delete this product?'))return; const cat=catalog.categories[edCatIdx]; cat.products.splice(edProdIdx,1); saveCatalog(); closeEditor(); render(); };
+  btnSave.onclick=()=>{
+    const newCatIdx=Number(edCategory.value); const cat=catalog.categories[edCatIdx]; const p=cat.products[edProdIdx];
+    p.name=edName.value.trim(); p.code=edCode.value.trim(); p.size=edSize.value.trim(); p.price=Number(edPrice.value||0); p.base_prompt=edPrompt.value.trim();
+    if(newCatIdx!==edCatIdx){ catalog.categories[newCatIdx].products.push(p); cat.products.splice(edProdIdx,1); }
+    saveCatalog(); closeEditor(); render();
+  };
+  modal.addEventListener('click',e=>{ if(e.target===modal) closeEditor(); });
+
+  /* ========= init ========= */
+  loadCatalog(); setAdmin(localStorage.getItem(LS_ADMIN)==='1'); render();
+
+  // Global keyboard
+  window.addEventListener('keydown',e=>{
+    if(e.altKey && e.key.toLowerCase()==='a'){ e.preventDefault(); toggleAdmin(); }
+  });
+})();
+</script>
+</body>
+</html>

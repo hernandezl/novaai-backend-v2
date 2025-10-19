@@ -1,266 +1,277 @@
-<!doctype html>
-<html lang="es">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NeguNova · NovaAI</title>
-  <style>
-    :root { color-scheme: dark; }
-    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
-           background:#0e0e12; color:#e7e7ee; }
-    header { padding:16px 20px; border-bottom:1px solid #22232b; }
-    main { display:grid; grid-template-columns: 360px 1fr; gap:20px; padding:20px; }
-    .card { background:#121319; border:1px solid #22232b; border-radius:14px; padding:16px; }
-    .row { display:flex; gap:12px; align-items:center; }
-    .col { display:flex; flex-direction:column; gap:10px; }
-    label { font-size:12px; opacity:.8; margin-bottom:4px; }
-    input[type="text"], textarea {
-      width:100%; background:#0b0c11; color:#e7e7ee; border:1px solid #2a2b35;
-      border-radius:10px; padding:10px 12px; outline:none;
-    }
-    textarea { min-height:120px; resize:vertical; }
-    button {
-      background:#ff7a18; color:#0b0c11; border:none; padding:10px 14px; border-radius:10px;
-      font-weight:700; cursor:pointer;
-    }
-    button.secondary { background:#1f2030; color:#d7d7e0; border:1px solid #2a2b35; }
-    button.link { background:transparent; color:#9fb7ff; border:none; padding:0; }
-    button[disabled] { opacity:.6; cursor:not-allowed; }
-    .is-loading { position:relative; }
-    .is-loading::after{
-      content:""; position:absolute; right:12px; top:50%; width:14px; height:14px;
-      margin-top:-7px; border:2px solid #0000; border-top-color:#0b0c11; border-left-color:#0b0c11;
-      border-radius:50%; animation:spin .7s linear infinite;
-    }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .previews { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    .preview {
-      background:#0b0c11; border:1px solid #2a2b35; border-radius:12px; min-height:340px;
-      display:flex; align-items:center; justify-content:center; overflow:hidden;
-    }
-    .preview object, .preview img { width:100%; height:100%; object-fit:contain; }
-    .hint { font-size:12px; opacity:.75; }
-    .thumb { max-width:100%; border:1px solid #2a2b35; border-radius:10px; }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NeguNova — NovaAI</title>
+<style>
+  :root{--bg:#0f1115;--panel:#151a26;--ring:rgba(255,255,255,.08);--text:#e8ecf1;--muted:#aeb6c3;--brand:#ff7a18;--ok:#35c759}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Arial}
+  header{background:linear-gradient(90deg,#ff7a18,#f7b733);color:#141414;padding:10px 16px}
+  .nav{display:flex;gap:12px}.nav a{background:rgba(255,255,255,.2);padding:6px 10px;border-radius:10px;color:#141414;font-weight:700;text-decoration:none}
+  .nav a[aria-current="page"]{background:#fff}
+  main{max-width:1200px;margin:0 auto;padding:18px;display:grid;grid-template-columns:420px 1fr;gap:16px}
+  .panel{background:var(--panel);border:1px solid var(--ring);border-radius:16px;padding:14px}
+  .field{display:grid;gap:6px;margin:10px 0}
+  label{font-size:12px;color:var(--muted)}
+  input[type="file"],select,textarea{background:#0f1420;border:1px solid var(--ring);color:#fff;padding:10px;border-radius:10px;width:100%}
+  .btn{padding:10px 14px;border:0;border-radius:12px;background:var(--brand);color:#141414;font-weight:800;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid var(--ring);color:#e8ecf1}
+  .btn.ok{background:var(--ok);color:#fff}
+  .imgbox{background:#0b0f18;border:1px solid var(--ring);border-radius:12px;min-height:520px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .imgbox img{max-width:100%;max-height:100%;display:block}
+  .helper{color:var(--muted);font-size:12px}
+  .out{background:#0f1420;border:1px solid var(--ring);border-radius:14px;padding:10px;margin-top:10px;white-space:pre-wrap;font-size:12px}
+  .chip{display:inline-flex;gap:8px;align-items:center;background:#2b3347;border-radius:999px;padding:6px 10px;margin:6px 0}
+  .thumb{width:28px;height:28px;border-radius:6px;object-fit:cover}
+  .chip .x{margin-left:6px;background:#1d2230;border:1px solid var(--ring);color:#e8ecf1;border-radius:8px;padding:4px 7px;cursor:pointer}
+  /* Drawer (right) */
+  .drawer{position:fixed;top:0;right:-420px;width:420px;height:100vh;background:#0f1420;border-left:1px solid var(--ring);box-shadow:-10px 0 30px rgba(0,0,0,.35);transition:right .28s ease;z-index:60;display:flex;flex-direction:column}
+  .drawer.open{right:0}
+  .drawer .head{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--ring)}
+  .drawer .list{padding:12px;display:grid;grid-template-columns:1fr;gap:10px;overflow:auto}
+  .card{border:1px solid var(--ring);border-radius:12px;background:#0b0f18;overflow:hidden}
+  .card img{width:100%;height:180px;object-fit:cover;display:block}
+  .card .bar{display:flex;gap:8px;padding:10px;border-top:1px solid var(--ring)}
+  .btn.yellow{background:#f1c40f;color:#141414;font-weight:800}
+</style>
 </head>
 <body>
-  <header>
-    <h1>NovaAI</h1>
-  </header>
+<header>
+  <nav class="nav">
+    <a href="home.html">Home</a>
+    <a href="products.html">Products</a>
+    <a href="orders.html">Orders</a>
+    <a href="novaai.html" aria-current="page">NovaAI</a>
+  </nav>
+</header>
 
-  <main>
-    <!-- ===== Sidebar: Inputs ===== -->
-    <section class="card col" style="height:fit-content">
-      <div class="col">
-        <label for="prompt">Prompt</label>
-        <textarea id="prompt" placeholder="Describe aquí (ej: ‘diseña una lámpara LED acrílica con líneas geométricas’)."></textarea>
-      </div>
+<main>
+  <!-- Left: controls -->
+  <section class="panel">
+    <h3 style="margin:0 0 6px">Generator</h3>
+    <div id="health" class="helper">Backend: checking…</div>
 
-      <div class="row" style="gap:8px; flex-wrap:wrap">
-        <button id="btn-generate-both">Generate (Owner + Customer)</button>
-        <button id="btn-upload" class="secondary" type="button">Upload reference</button>
-        <input id="file-input" type="file" accept="image/*" style="display:none" />
-        <button id="btn-products" class="secondary" type="button">Pull from Products</button>
-      </div>
+    <div class="field">
+      <label>Catalog</label>
+      <button id="openCatalog" class="btn">Open catalog</button>
+      <div id="chip"></div>
+    </div>
 
-      <div id="ref-wrap" class="col" style="display:none">
-        <label>Reference loaded</label>
-        <img id="ref-thumb" class="thumb" alt="reference preview" />
-        <span class="hint">Se enviará como <code>image_base64</code> al backend.</span>
-      </div>
+    <div class="field">
+      <label>Upload image (optional)</label>
+      <input id="upload" type="file" accept="image/*"/>
+    </div>
 
-      <p id="status" class="hint"></p>
-    </section>
+    <div class="field">
+      <label>Font</label>
+      <select id="font">
+        <option>DM Sans</option>
+        <option>Montserrat</option>
+        <option>Poppins</option>
+        <option>Roboto</option>
+      </select>
+    </div>
 
-    <!-- ===== Right: Previews ===== -->
-    <section class="col">
-      <div class="row" style="justify-content:space-between; align-items:baseline">
-        <h3>Previews</h3>
-        <small class="hint">Owner = vector (SVG) • Customer = realista</small>
-      </div>
-      <div class="previews">
-        <div class="col">
-          <label>Owner (vector)</label>
-          <div id="owner-preview" class="preview"><span class="hint">Sin imagen</span></div>
-        </div>
-        <div class="col">
-          <label>Customer (realista)</label>
-          <div id="customer-preview" class="preview"><span class="hint">Sin imagen</span></div>
-        </div>
-      </div>
-    </section>
-  </main>
+    <div class="field">
+      <label>Prompt (ONLY change figure/text)</label>
+      <textarea id="prompt" rows="4" placeholder="e.g., replace the figure with a sports car; add text “ANA & LUIS 2025”"></textarea>
+      <div class="helper">Negative prompts lock the style/composition. If no prompt and there is a reference, we imitate it faithfully.</div>
+    </div>
 
-  <script>
-  /** ========= CONFIG ========= **/
-  const BACKEND = "https://novaai-backend-v2.onrender.com";
+    <div class="field" style="display:flex;gap:8px;align-items:center">
+      <button id="btnGen" class="btn ok">Generate</button>
+      <button id="btnOrder" class="btn yellow">Order</button>
+    </div>
+  </section>
 
-  // ===== UI Refs
-  const btnGenerate = document.querySelector('#btn-generate-both');
-  const btnUpload   = document.querySelector('#btn-upload');
-  const btnProducts = document.querySelector('#btn-products');
-  const fileInput   = document.querySelector('#file-input');
-  const promptInput = document.querySelector('#prompt');
-  const ownerPreview = document.querySelector('#owner-preview');
-  const customerPreview = document.querySelector('#customer-preview');
-  const statusEl = document.querySelector('#status');
-  const refWrap = document.querySelector('#ref-wrap');
-  const refThumb = document.querySelector('#ref-thumb');
+  <!-- Right: single result -->
+  <section class="panel">
+    <h3 style="margin:0 0 6px">Result (customer)</h3>
+    <div id="result" class="imgbox"><div class="helper">No image yet.</div></div>
+    <div id="msg" class="out"></div>
+  </section>
+</main>
 
-  const toast = (msg) => alert(msg);
+<!-- Drawer: History -->
+<aside id="drawer" class="drawer" aria-hidden="true">
+  <div class="head">
+    <strong>Image history</strong>
+    <div class="row" style="gap:8px">
+      <button id="btnClearHist" class="btn ghost">Clear</button>
+      <button id="btnCloseDrawer" class="btn ghost">Close</button>
+    </div>
+  </div>
+  <div id="histList" class="list"></div>
+</aside>
 
-  let referenceDataUrl = null; // base64 cargado por el usuario
+<script>
+/* ===== Config ===== */
+const BACKEND_BASE='https://novaai-backend-v2.onrender.com';
+const ENDPOINT_HEALTH=BACKEND_BASE+'/api/health';
+const ENDPOINT_GENERATE=BACKEND_BASE+'/api/generate';
+const NVAI_KEY='novaai:selectedProduct';
+const HISTORY_KEY='novaai:history:v2';
 
-  // ===== Helpers =====
-  async function fileToDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
-      reader.onload = () => resolve(reader.result);
-      reader.readAsDataURL(file);
-    });
-  }
+/* ===== Utils ===== */
+function withTimeout(p, ms=90000){ let t; const timer=new Promise((_,rej)=>t=setTimeout(()=>rej(new Error('Network timeout')),ms)); return Promise.race([p.finally(()=>clearTimeout(t)),timer]); }
+async function fetchJSON(url, init){ try{ const r=await fetch(url,init); const t=await r.text(); let j=null; try{ j=JSON.parse(t); }catch{} return {ok:r.ok,status:r.status,json:j,text:t,error:null}; }catch(e){ return {ok:false,status:0,json:null,text:'',error:String(e)}; } }
+function fileToDataURL(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); }); }
 
-  async function renderSVGInto(container, svgUrl) {
-    if (!container) return;
-    container.innerHTML = '';
-    const obj = document.createElement('object');
-    obj.type = 'image/svg+xml';
-    obj.data = svgUrl;
-    obj.style.width = '100%';
-    obj.style.height = '100%';
-    container.appendChild(obj);
-  }
+/* ===== Incoming (from Products) ===== */
+const qs = new URLSearchParams(location.search);
+let incoming=null;
+try{ incoming = JSON.parse(sessionStorage.getItem('novaai_incoming')||'null'); }catch{}
+incoming = incoming || {
+  id: qs.get('id')||'',
+  name: qs.get('name')||'',
+  ref: qs.get('ref')||'',
+  prompt: qs.get('prompt')||''
+};
 
-  async function pollReplicate(getUrl, onProgress) {
-    const headers = { 'Accept': 'application/json' };
-    while (true) {
-      const r = await fetch(getUrl, { headers });
-      if (!r.ok) throw new Error('Replicate poll failed: ' + (await r.text()));
-      const data = await r.json();
-      onProgress?.(data.status);
-      if (data.status === 'succeeded') {
-        return Array.isArray(data.output) ? data.output[0] : data.output;
-      }
-      if (data.status === 'failed' || data.status === 'canceled') {
-        throw new Error('Replicate job ' + data.status);
-      }
-      await new Promise(res => setTimeout(res, 1600));
-    }
-  }
+/* ===== UI refs ===== */
+const health = document.getElementById('health');
+const chip = document.getElementById('chip');
+const upload = document.getElementById('upload');
+const font = document.getElementById('font');
+const promptBox = document.getElementById('prompt');
+const btnGen = document.getElementById('btnGen');
+const btnOrder = document.getElementById('btnOrder');
+const openCatalog = document.getElementById('openCatalog');
+const result = document.getElementById('result');
+const msg = document.getElementById('msg');
+const drawer = document.getElementById('drawer');
+const btnCloseDrawer = document.getElementById('btnCloseDrawer');
+const btnClearHist = document.getElementById('btnClearHist');
+const histList = document.getElementById('histList');
 
-  function setRasterPreview(url) {
-    customerPreview.innerHTML = '';
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = 'Customer preview';
-    img.style.maxWidth = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'contain';
-    customerPreview.appendChild(img);
-  }
-
-  function setVectorPreview(url) {
-    return renderSVGInto(ownerPreview, url);
-  }
-
-  function setStatus(msg) {
-    if (statusEl) statusEl.textContent = msg || '';
-  }
-
-  // ===== Actions =====
-  async function handleGenerateBoth() {
-    try {
-      const prompt = (promptInput?.value || '').trim();
-      if (!prompt) return toast('Escribe un prompt primero.');
-
-      btnGenerate.setAttribute('disabled', 'true');
-      btnGenerate.classList.add('is-loading');
-      setStatus('Solicitando generación…');
-
-      const body = {
-        prompt,
-        mode: 'both',
-        params: { steps: 4 } // Flux exige 1..4, backend también hace clamp
-      };
-      if (referenceDataUrl) body.image_base64 = referenceDataUrl;
-
-      const r = await fetch(`${BACKEND}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      const data = await r.json();
-      if (!r.ok) throw new Error((data && data.error) || 'Request failed');
-
-      // Vector (Replicate recraft)
-      if (data.vector_url) {
-        setStatus('Generando vector…');
-        try {
-          const svgUrl = await pollReplicate(data.vector_url);
-          await setVectorPreview(svgUrl);
-        } catch (e) {
-          console.warn(e);
-          toast('Vector falló (owner).');
-        }
-      }
-
-      // Realista (OpenAI directo o fallback Flux vía Replicate)
-      if (data.raster_url) {
-        // Si viene un endpoint de polling, lo detectamos
-        if (/\/predictions\//.test(data.raster_url)) {
-          setStatus('Generando realista…');
-          try {
-            const imgUrl = await pollReplicate(data.raster_url);
-            setRasterPreview(imgUrl);
-          } catch (e) {
-            console.warn(e);
-            toast('Realista falló (customer).');
-          }
-        } else {
-          setRasterPreview(data.raster_url);
-        }
-      }
-
-      if (!data.vector_url && !data.raster_url) {
-        toast('No se pudo generar ninguna imagen.');
-      } else {
-        setStatus('Listo.');
-      }
-
-    } catch (err) {
-      console.error(err);
-      toast('Error: ' + err.message);
-      setStatus('Error.');
-    } finally {
-      btnGenerate.removeAttribute('disabled');
-      btnGenerate.classList.remove('is-loading');
-    }
-  }
-
-  // ===== UI Events =====
-  btnGenerate?.addEventListener('click', (e) => {
-    e.preventDefault();
-    handleGenerateBoth();
+/* ===== History helpers ===== */
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]'); }catch{ return []; } }
+function saveHistory(arr){ localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); }
+function addHistory(src){
+  if(!src) return;
+  let h=loadHistory();
+  // keep max 20
+  while(h.length>=20) h.shift();
+  h.push({ id:crypto.randomUUID(), src, ts:Date.now() });
+  saveHistory(h);
+}
+function renderHistory(){
+  const h=loadHistory().slice().reverse();
+  histList.innerHTML='';
+  if(!h.length){ histList.innerHTML='<div class="helper">No images yet.</div>'; return; }
+  h.forEach(item=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`
+      <img src="${item.src}" alt="hist">
+      <div class="bar">
+        <button class="btn" data-x="view">Enlarge</button>
+        <button class="btn yellow" data-x="order">Order</button>
+      </div>`;
+    card.querySelector('[data-x="view"]').onclick=()=>{ const w=open('about:blank','_blank'); w.document.write('<img style="max-width:100%" src="'+item.src+'">'); w.document.close(); };
+    card.querySelector('[data-x="order"]').onclick=()=>{ location.assign('orders.html?img='+encodeURIComponent(item.src)); };
+    histList.appendChild(card);
   });
+}
 
-  btnUpload?.addEventListener('click', () => fileInput.click());
-  fileInput?.addEventListener('change', async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    try {
-      referenceDataUrl = await fileToDataURL(f);
-      refThumb.src = referenceDataUrl;
-      refWrap.style.display = 'block';
-    } catch (err) {
-      toast('No se pudo cargar la referencia.');
+/* ===== Init ===== */
+(async ()=>{
+  // Chip (with thumbnail)
+  const prod = (()=>{ try{return JSON.parse(sessionStorage.getItem(NVAI_KEY)||'null');}catch{return null;} })();
+  if(incoming.name || incoming.id || prod){
+    const span=document.createElement('span'); span.className='chip';
+    const thumbSrc = prod?.imageResolved || prod?.image || incoming.ref || '';
+    if(thumbSrc){
+      const im=document.createElement('img'); im.src=thumbSrc; im.alt='thumb'; im.className='thumb';
+      span.appendChild(im);
     }
-  });
+    const txt=document.createElement('span'); txt.textContent = (incoming.name||prod?.name||incoming.id||'Product');
+    span.appendChild(txt);
+    const btnX=document.createElement('button'); btnX.type='button'; btnX.className='x'; btnX.textContent='Clear';
+    btnX.onclick=()=>{ sessionStorage.removeItem('novaai_incoming'); sessionStorage.removeItem(NVAI_KEY); chip.innerHTML=''; };
+    span.appendChild(btnX);
+    chip.innerHTML=''; chip.appendChild(span);
+  }
+  if(incoming.prompt && !promptBox.value) promptBox.value = incoming.prompt;
 
-  btnProducts?.addEventListener('click', () => {
-    window.location.href = 'products.html';
-  });
-  </script>
+  // Health
+  const h = await fetchJSON(ENDPOINT_HEALTH, {method:'GET',mode:'cors'});
+  health.textContent = h.ok ? `${h.json?.engine||'Backend'} • OK` : `Backend error: ${h.status||''} ${h.text||h.error||''}`;
+})();
+
+openCatalog.onclick = ()=> location.assign('products.html');
+
+/* ===== Generate ===== */
+btnGen.onclick = async ()=>{
+  result.innerHTML = '<div class="helper">Generating…</div>';
+  msg.textContent = '';
+
+  // 1) pick reference: upload > incoming.ref > selectedProduct.imageResolved
+  let refData = '';
+  try{
+    if(upload.files && upload.files[0]) refData = await fileToDataURL(upload.files[0]);
+    else if(incoming.ref) refData = incoming.ref;
+    else {
+      try{
+        const prod = JSON.parse(sessionStorage.getItem(NVAI_KEY)||'null');
+        if(prod?.imageResolved) refData = prod.imageResolved;
+        else if(prod?.image) refData = prod.image;
+      }catch{}
+    }
+  }catch(e){ console.warn('ref data error', e); }
+
+  // 2) guided prompt (lock style)
+  const NEGATIVES = [
+    'no background changes','no layout changes','no composition changes',
+    'no extra objects','no new elements','keep same line weights','keep same lighting',
+    'no gradients','no 3D volume','no photoreal backgrounds'
+  ].join(', ');
+  const user = (promptBox.value||'').trim();
+  const fontName = font.value || 'DM Sans';
+
+  // If user empty and ref exists -> faithful imitation (proxy lo interpreta con strength bajo)
+  const guided = [
+    `Only change the main figure and/or overlaid texts.`,
+    `Keep the original style, composition, background, and line weights.`,
+    `Use font: ${fontName}.`,
+    `Negative prompts: ${NEGATIVES}.`
+  ].join(' ');
+  const finalPrompt = user ? `${guided} Instructions: ${user}` : '';
+
+  const payload = { prompt: finalPrompt, ...(refData ? { ref: refData } : {}), meta:{title: incoming.name || 'Generated'} };
+
+  const {ok,status,json,text,error} = await withTimeout(fetchJSON(ENDPOINT_GENERATE,{
+    method:'POST',mode:'cors',headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  }), 180000);
+
+  if(!ok){
+    result.innerHTML = '<div class="helper">No image.</div>';
+    msg.textContent = `Backend error ${status||''}\n${json?.error || text || error || ''}`;
+    return;
+  }
+
+  const data = json || {};
+  const src = data.image || data.customer || data.owner || '';
+  if(src){
+    result.innerHTML = `<img src="${src}" alt="result">`;
+    addHistory(src);
+    renderHistory();
+  }else{
+    result.innerHTML = '<div class="helper">No image in response.</div>';
+  }
+  msg.textContent = `Done. Engine: ${data.used || '—'}`;
+};
+
+/* ===== Drawer / Order ===== */
+btnOrder.onclick = ()=>{
+  // if visible image -> order that; else open drawer
+  const img = document.querySelector('#result img');
+  if(img?.src){ location.assign('orders.html?img='+encodeURIComponent(img.src)); return; }
+  drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); renderHistory();
+};
+btnCloseDrawer.onclick = ()=>{ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); };
+btnClearHist.onclick = ()=>{ localStorage.setItem(HISTORY_KEY,'[]'); renderHistory(); };
+
+</script>
 </body>
 </html>
