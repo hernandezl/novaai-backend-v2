@@ -1,338 +1,418 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>NeguNova — NovaAI</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NovaAI – NeguNova</title>
 <style>
   :root{
-    --bg:#0f1115;--panel:#151a26;--ring:rgba(255,255,255,.08);--text:#e8ecf1;--muted:#aeb6c3;
-    --brand:#ff7a18;--ok:#35c759;--warn:#ffc107;--chip:#2b3347
+    --bg:#0f1216; --panel:#171b22; --muted:#9aa3b2; --text:#e9eef7;
+    --brand1:#ff7a00; --brand2:#ff3a2f; --ok:#2ecc71; --warn:#f39c12; --danger:#e74c3c;
+    --card:#1a1f27; --ring:#2b3546; --shadow:0 10px 30px rgba(0,0,0,.35);
   }
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Arial}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,Segoe UI,Inter,Roboto,Arial}
 
-  header{background:linear-gradient(90deg,#ff7a18,#f7b733);color:#141414;padding:10px 16px;position:sticky;top:0;z-index:50}
-  .nav{display:flex;gap:12px}
-  .nav a{background:rgba(255,255,255,.2);padding:6px 10px;border-radius:10px;color:#141414;font-weight:700;text-decoration:none}
-  .nav a[aria-current="page"]{background:#fff}
+  /* Header */
+  .header{background:linear-gradient(90deg,var(--brand1),var(--brand2));padding:14px 22px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:70}
+  .brand{font-weight:800;letter-spacing:.2px;font-size:20px}
+  .nav{margin-left:auto;display:flex;gap:10px}
+  .nav a{color:#fff;text-decoration:none;padding:8px 14px;border-radius:10px;opacity:.9}
+  .nav a:hover{background:rgba(255,255,255,.15)}
+  .nav a.active{background:rgba(0,0,0,.2)}
 
-  main{max-width:1200px;margin:0 auto;padding:18px;display:grid;grid-template-columns:420px 1fr;gap:16px}
-  .panel{background:var(--panel);border:1px solid var(--ring);border-radius:16px;padding:14px}
+  /* Layout */
+  .wrap{max-width:1200px;margin:22px auto;padding:0 16px;display:grid;grid-template-columns:370px 1fr;gap:18px}
+  @media (max-width:980px){.wrap{grid-template-columns:1fr}}
 
-  .field{display:grid;gap:6px;margin:10px 0}
-  label{font-size:12px;color:var(--muted)}
-  input[type="file"],select,textarea{background:#0f1420;border:1px solid var(--ring);color:#fff;padding:10px;border-radius:10px;width:100%}
-  .btn{padding:10px 14px;border:0;border-radius:12px;background:var(--brand);color:#141414;font-weight:800;cursor:pointer}
-  .btn.ghost{background:transparent;border:1px solid var(--ring);color:#e8ecf1}
-  .btn.ok{background:var(--ok);color:#fff}
-  .btn.warn{background:var(--warn);color:#141414;font-weight:900}
-  .btn:disabled{opacity:.55;cursor:not-allowed}
-
-  .row{display:flex;gap:8px;align-items:center}
-
-  /* Chip producto seleccionado */
-  .chip{display:inline-flex;gap:8px;align-items:center;background:var(--chip);border:1px solid var(--ring);border-radius:999px;padding:6px 10px;margin-top:6px}
-  .chip .thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;background:#0b0f18}
-  .chip .name{font-weight:700}
-  .chip .x{margin-left:6px;border:1px solid var(--ring);background:#1b2131;color:#cfd8ea;border-radius:999px;padding:3px 8px;font-size:12px;cursor:pointer}
-
-  /* Resultado */
-  .imgbox{background:#0b0f18;border:1px solid var(--ring);border-radius:12px;min-height:520px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-  .imgbox img{max-width:100%;max-height:100%;display:block}
-
+  /* Left panel (controls) */
+  .panel{background:var(--panel);border:1px solid #232c3c;border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+  .panel h3{margin:0 0 8px}
   .helper{color:var(--muted);font-size:12px}
-  .out{background:#0f1420;border:1px solid var(--ring);border-radius:14px;padding:10px;margin-top:10px;white-space:pre-wrap;font-size:12px}
 
-  /* Panel deslizante de historial (derecha) */
-  .drawer{position:fixed;top:0;right:0;height:100%;width:min(380px,92vw);background:#0f1420;border-left:1px solid #2a3244;transform:translateX(100%);transition:transform .25s ease;z-index:80;display:flex;flex-direction:column}
-  .drawer.on{transform:translateX(0)}
-  .drawer .head{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid #2a3244}
-  .drawer h4{margin:0;font-size:14px}
-  .drawer .body{padding:12px;overflow:auto;display:grid;gap:10px}
-  .thumb-card{background:#121827;border:1px solid #2a3244;border-radius:12px;padding:8px}
-  .thumb-card img{width:100%;height:170px;object-fit:cover;border-radius:8px;display:block}
-  .thumb-actions{display:flex;gap:8px;margin-top:8px}
-  .thumb-actions .btn{padding:8px 10px;border-radius:10px}
+  .row{display:grid;gap:10px;margin:10px 0}
+  .row.two{grid-template-columns:1fr 1fr}
+  .row input[type="text"], .row input[type="file"], .row select, .row textarea{
+    width:100%;background:#0f151e;border:1px solid #2c3a50;color:#e9eef7;border-radius:10px;padding:10px
+  }
+  textarea{min-height:90px}
+
+  .btn{border:none;border-radius:12px;padding:10px 14px;color:#fff;background:#263142;cursor:pointer;box-shadow:var(--shadow);transition:.2s transform,.2s opacity}
+  .btn:hover{transform:translateY(-1px);opacity:.95}
+  .btn.primary{background:linear-gradient(90deg,#ff7a00,#ff3a2f)}
+  .btn.ok{background:linear-gradient(90deg,#27ae60,#1abc9c)}
+  .btn.warn{background:linear-gradient(90deg,#f39c12,#f1c40f)}
+  .btn.light{background:#3b465a}
+  .btn.danger{background:#e74c3c}
+  .btn.block{width:100%}
+
+  /* Chip selected product */
+  .chip{display:flex;align-items:center;gap:10px;background:#111824;border:1px solid #2a3547;border-radius:12px;padding:8px 10px;margin-top:8px}
+  .chip img{width:38px;height:38px;object-fit:cover;border-radius:8px;border:1px solid #2a3547;background:#0b0e13}
+  .chip .meta{display:flex;flex-direction:column}
+  .chip small{color:#94a0b2}
+  .chip .clear{margin-left:auto}
+
+  /* Right: result canvas */
+  .canvas{background:#0b0f15;border:1px solid #232c3c;border-radius:18px;padding:14px;min-height:520px;display:flex;flex-direction:column}
+  .canvas h3{margin:0 0 8px}
+  .stage{flex:1;border:1px dashed #2a3547;border-radius:14px;background:#0d1118;display:grid;place-items:center;overflow:hidden}
+  .stage img{max-width:100%;max-height:100%;display:block}
+  .status{margin-top:10px;font-size:13px;color:#9aa3b2;white-space:nowrap;overflow:auto}
+
+  /* Slide-out: order history (right) */
+  .drawer{position:fixed;top:0;right:-420px;width:420px;max-width:92vw;height:100vh;background:#0f151e;border-left:1px solid #263142;box-shadow:-10px 0 30px rgba(0,0,0,.4);transition:right .28s ease;z-index:120;display:flex;flex-direction:column}
+  .drawer.on{right:0}
+  .drawer-head{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid #273449}
+  .drawer-head .title{font-weight:800}
+  .drawer-head .sp{flex:1}
+  .drawer-body{padding:12px;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .thumb{background:#0b0e13;border:1px solid #2c3a50;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .thumb img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+  .thumb .act{display:flex;gap:6px;padding:8px;border-top:1px solid #233046}
+  .thumb .act .btn{padding:7px 10px;border-radius:10px}
+  .drawer-foot{padding:10px;border-top:1px solid #273449;display:flex;gap:8px;justify-content:flex-end}
+
+  /* Modal enlarge */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;z-index:150}
+  .modal.on{display:grid}
+  .modal .box{max-width:92vw;max-height:92vh;background:#0f151e;border:1px solid #2a3547;border-radius:12px;padding:10px}
+  .modal .box img{max-width:86vw;max-height:86vh;display:block}
+
+  .badge{margin-left:8px;background:#111b28;border:1px solid #2a3547;padding:4px 8px;border-radius:10px;color:#bcd}
 </style>
 </head>
 <body>
-<header>
+<header class="header">
+  <div class="brand">NeguNova</div>
   <nav class="nav">
-    <a href="/home.html">Home</a>
-    <a href="/products.html">Products</a>
-    <a href="/orders.html">Orders</a>
-    <a href="/novaai.html" aria-current="page">NovaAI</a>
+    <a href="home.html">Home</a>
+    <a href="products.html">Products</a>
+    <a href="orders.html">Orders</a>
+    <a href="novaai.html" class="active">NovaAI</a>
   </nav>
+  <span id="proxyState" class="badge">Proxy: checking…</span>
 </header>
 
-<main>
-  <!-- Lado izquierdo: controles -->
-  <section class="panel">
-    <h3 style="margin:0 0 6px">Generator</h3>
-    <div id="health" class="helper">Local proxy: checking…</div>
+<div class="wrap">
+  <!-- LEFT: Controls -->
+  <section class="panel" aria-label="Generator">
+    <h3>Generator</h3>
 
-    <div class="field">
-      <label>Catalog</label>
-      <div class="row">
-        <button id="openCatalog" class="btn">Open Catalog</button>
-        <button id="toggleHistory" class="btn warn">Order History</button>
-        <button id="clearHist" class="btn ghost" title="Remove all saved images">Clear</button>
+    <div class="row">
+      <button id="btnCatalog" class="btn primary block">Open Catalog</button>
+      <div id="chipBox"></div>
+    </div>
+
+    <div class="row two">
+      <div>
+        <label class="helper">Upload image (optional)</label>
+        <input id="fileUp" type="file" accept="image/*" />
       </div>
-      <div id="chip"></div>
-      <div class="helper">You can remove the product chip to work only with your upload and text.</div>
+      <div>
+        <label class="helper">Font</label>
+        <select id="fontSel">
+          <option>DM Sans</option>
+          <option>Montserrat</option>
+          <option>Poppins</option>
+          <option>Inter</option>
+        </select>
+      </div>
     </div>
 
-    <div class="field">
-      <label>Upload image (optional)</label>
-      <input id="upload" type="file" accept="image/*"/>
-    </div>
-
-    <div class="field">
-      <label>Font</label>
-      <select id="font">
-        <option>DM Sans</option>
-        <option>Montserrat</option>
-        <option>Poppins</option>
-        <option>Roboto</option>
-      </select>
-    </div>
-
-    <div class="field">
-      <label>Prompt (only change figure and/or text)</label>
-      <textarea id="prompt" rows="4" placeholder="E.g.: Replace the figure with a sports car; text 'ANA Y LUIS 2025'"></textarea>
+    <div class="row">
+      <label class="helper">Prompt (only change figure and/or text)</label>
+      <textarea id="promptBox" placeholder="E.g.: Replace the figure with a sports car; text 'ANA Y LUIS 2025'"></textarea>
       <div class="helper">Predefined negatives restrict changes exclusively to figures and texts; style/composition remain intact.</div>
     </div>
 
-    <div class="field" style="display:flex;gap:8px">
-      <button id="btnGen" class="btn ok">Generate</button>
+    <div class="row two">
+      <button id="btnGenerate" class="btn ok">Generate</button>
+      <button id="btnDrawer" class="btn warn">Order History</button>
     </div>
-  </section>
 
-  <!-- Lado derecho: resultado único para el cliente -->
-  <section class="panel">
-    <h3 style="margin:0 0 6px">Result (customer)</h3>
-    <div id="result" class="imgbox"><div class="helper">No image yet.</div></div>
-    <div id="msg" class="out"></div>
-  </section>
-</main>
-
-<!-- Drawer de historial -->
-<aside id="drawer" class="drawer" aria-hidden="true">
-  <div class="head">
-    <h4>Image history (max: 20)</h4>
     <div class="row">
-      <button id="btnCloseDrawer" class="btn ghost">Close</button>
-      <button id="btnClearDrawer" class="btn">Clear history</button>
+      <button id="btnClear" class="btn light block">Clear</button>
     </div>
+  </section>
+
+  <!-- RIGHT: Canvas -->
+  <section class="canvas" aria-label="Result (customer)">
+    <h3>Result (customer)</h3>
+    <div id="stage" class="stage"><div class="helper">No image yet.</div></div>
+    <div id="status" class="status"></div>
+  </section>
+</div>
+
+<!-- Drawer (right) -->
+<aside id="drawer" class="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div class="title">Image History <span class="helper">(max 20)</span></div>
+    <div class="sp"></div>
+    <button id="btnClearHist" class="btn light">Clear history</button>
+    <button id="btnCloseDrawer" class="btn danger">Close</button>
   </div>
-  <div id="histBody" class="body"></div>
+  <div id="histBody" class="drawer-body"></div>
+  <div class="drawer-foot">
+    <button id="btnOrderFromCanvas" class="btn warn">Order current</button>
+  </div>
 </aside>
 
+<!-- Enlarge modal -->
+<div id="modal" class="modal"><div class="box"><img id="modalImg" alt="preview" /></div></div>
+
 <script>
-/* ======= Config ======= */
-const BACKEND = 'https://novaai-backend-v2.onrender.com';
-const ENDPOINT = BACKEND + '/api/generate';
+(() => {
+  // ====== CONFIG ======
+  const PROXY_BASE = "https://novaai-backend-v2.onrender.com";
+  const NVAI_KEY = "novaai:selectedProduct";        // sessionStorage key set by products.html
+  const HIST_KEY = "novaai:history";                // localStorage history
 
-/* ======= Utils ======= */
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-function withTimeout(p, ms=120000){ let t; const timer=new Promise((_,rej)=>t=setTimeout(()=>rej(new Error('Network timeout')),ms)); return Promise.race([p.finally(()=>clearTimeout(t)),timer]); }
-async function fetchJSON(url, init){ try{ const r=await fetch(url,init); const t=await r.text(); let j=null; try{ j=JSON.parse(t); }catch{} return {ok:r.ok,status:r.status,json:j,text:t,error:null}; }catch(e){ return {ok:false,status:0,json:null,text:'',error:String(e)}; } }
-function fileToDataURL(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); }); }
-function dataURLtoBlob(dataURL){ const [h, b64] = dataURL.split(','); const mime = /data:(.*?);base64/.exec(h)?.[1]||'image/png'; return new Blob([Uint8Array.from(atob(b64), c=>c.charCodeAt(0))], {type:mime}); }
+  // ====== DOM ======
+  const proxyState = document.getElementById("proxyState");
+  const chipBox = document.getElementById("chipBox");
+  const fileUp = document.getElementById("fileUp");
+  const fontSel = document.getElementById("fontSel");
+  const promptBox = document.getElementById("promptBox");
+  const btnCatalog = document.getElementById("btnCatalog");
+  const btnGenerate = document.getElementById("btnGenerate");
+  const btnDrawer = document.getElementById("btnDrawer");
+  const btnClear = document.getElementById("btnClear");
+  const stage = document.getElementById("stage");
+  const statusEl = document.getElementById("status");
+  const drawer = document.getElementById("drawer");
+  const histBody = document.getElementById("histBody");
+  const btnClearHist = document.getElementById("btnClearHist");
+  const btnCloseDrawer = document.getElementById("btnCloseDrawer");
+  const btnOrderFromCanvas = document.getElementById("btnOrderFromCanvas");
+  const modal = document.getElementById("modal");
+  const modalImg = document.getElementById("modalImg");
 
-/* ======= Cargar payload de Products (si existe) ======= */
-let incoming=null;
-try{
-  incoming = JSON.parse(sessionStorage.getItem('novaai_incoming')||'null');
-}catch{}
-if(!incoming){
-  // fallback para la clave antigua
-  try{ incoming = JSON.parse(sessionStorage.getItem('novaai:selectedProduct')||'null'); }catch{}
-}
+  // ====== STATE ======
+  let currentChip = null; // { id,name,ref,imageResolved,prompt,... } from products
+  let currentImage = null; // dataURL of last generated
 
-/* ======= UI refs ======= */
-const health = document.getElementById('health');
-const chip = document.getElementById('chip');
-const upload = document.getElementById('upload');
-const font = document.getElementById('font');
-const promptBox = document.getElementById('prompt');
-const btnGen = document.getElementById('btnGen');
-const openCatalog = document.getElementById('openCatalog');
-const result = document.getElementById('result');
-const msg = document.getElementById('msg');
+  // ====== Helpers ======
+  const escapeHTML = (s)=> (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
+  const readAsDataURL = (file)=> new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
 
-const drawer = document.getElementById('drawer');
-const toggleHistory = document.getElementById('toggleHistory');
-const btnCloseDrawer = document.getElementById('btnCloseDrawer');
-const btnClearDrawer = document.getElementById('btnClearDrawer');
-const clearHistTop = document.getElementById('clearHist');
-const histBody = document.getElementById('histBody');
-
-/* ======= History (localStorage) ======= */
-const HKEY = 'novaai_history_v2';
-function loadHist(){ try{ return JSON.parse(localStorage.getItem(HKEY)||'[]'); }catch{ return []; } }
-function saveHist(arr){ try{ localStorage.setItem(HKEY, JSON.stringify(arr.slice(0,20))); }catch{} }
-function pushHist(item){
-  const arr = loadHist();
-  arr.unshift(item);
-  saveHist(arr);
-  renderHistory();
-}
-function renderHistory(){
-  const arr = loadHist();
-  histBody.innerHTML = '';
-  arr.forEach((it,idx)=>{
-    const card = document.createElement('div'); card.className='thumb-card';
-    const im = new Image(); im.src = it.image; card.appendChild(im);
-    const actions = document.createElement('div'); actions.className='thumb-actions';
-    const b1 = document.createElement('button'); b1.className='btn ghost'; b1.textContent='Enlarge';
-    b1.onclick = ()=> openImage(it.image);
-    const b2 = document.createElement('button'); b2.className='btn warn'; b2.textContent='Order';
-    b2.onclick = ()=> goOrder(it);
-    actions.append(b1,b2); card.appendChild(actions);
-    histBody.appendChild(card);
-  });
-}
-function openImage(src){ const w=window.open('','_blank'); if(!w){alert('Pop-up blocked'); return;} w.document.write(`<title>Preview</title><img src="${src}" style="max-width:100%;display:block;margin:0 auto"/>`); }
-function goOrder(item){
-  // empaquetar y enviar a orders.html
-  const payload = {
-    product: currentChip?.name || 'Generated',
-    ref: currentChip?.ref || '',
-    prompt: item.prompt || '',
-    image: item.image || '',
-    when: item.when || Date.now()
-  };
-  try{ sessionStorage.setItem('novaai_order', JSON.stringify(payload)); }catch{}
-  location.assign('/orders.html');
-}
-
-/* ======= CHIP (producto) ======= */
-let currentChip = null; // {name, ref (original), thumb (resolved)}
-function renderChip(){
-  chip.innerHTML = '';
-  if(!currentChip) return;
-  const span = document.createElement('span'); span.className='chip';
-  const im = document.createElement('img'); im.src=currentChip.thumb||currentChip.ref; im.alt='thumb'; im.className='thumb';
-  span.appendChild(im);
-  const txt = document.createElement('span'); txt.className='name'; txt.textContent=currentChip.name || 'Selected';
-  span.appendChild(txt);
-  const x = document.createElement('button'); x.className='x'; x.textContent='Clear chip';
-  x.onclick = ()=>{ currentChip = null; chip.innerHTML=''; };
-  span.appendChild(x);
-  chip.appendChild(span);
-}
-
-/* ======= INIT ======= */
-(async ()=>{
-  // Chip si llega de products
-  if(incoming && (incoming.ref || incoming.imageResolved || incoming.image)){
-    currentChip = {
-      name: incoming.name || incoming.id || 'Selected',
-      ref: incoming.ref || incoming.image || '',
-      thumb: incoming.imageResolved || incoming.ref || incoming.image || ''
-    };
-    renderChip();
+  function setStatus(t){ statusEl.textContent = t||""; }
+  function setStageLoading(on){
+    stage.innerHTML = on ? '<div class="helper">Generating…</div>' : '<div class="helper">No image yet.</div>';
   }
-  if(incoming?.prompt && !promptBox.value) promptBox.value = incoming.prompt;
+  function showImage(dataURL){
+    currentImage = dataURL;
+    stage.innerHTML = "";
+    const img = new Image();
+    img.alt = "Generated image";
+    img.src = dataURL;
+    stage.appendChild(img);
+  }
 
-  // Health
-  const h = await fetchJSON(BACKEND+'/api/health', {method:'GET',mode:'cors'});
-  health.textContent = h.ok ? `Local proxy OK • ${h.json?.engine||'proxy'}` : `Proxy error: ${h.status||''} ${h.text||h.error||''}`;
+  // History
+  function loadHistory(){
+    try{ return JSON.parse(localStorage.getItem(HIST_KEY)||"[]"); }catch{ return []; }
+  }
+  function saveHistory(arr){
+    try{ localStorage.setItem(HIST_KEY, JSON.stringify(arr.slice(0,20))); }catch{}
+  }
+  function pushHistory(dataURL){
+    const now = Date.now();
+    const arr = loadHistory();
+    arr.unshift({id:"h_"+now, ts:now, img:dataURL});
+    saveHistory(arr);
+  }
+  function renderHistory(){
+    const arr = loadHistory();
+    histBody.innerHTML = "";
+    arr.forEach(item=>{
+      const card = document.createElement("div");
+      card.className = "thumb";
+      const img = new Image();
+      img.src = item.img;
+      img.alt = "history item";
+      card.appendChild(img);
 
-  renderHistory();
-})();
+      const act = document.createElement("div");
+      act.className = "act";
+      const b1 = document.createElement("button");
+      b1.className = "btn light";
+      b1.textContent = "Enlarge";
+      b1.onclick = ()=>{ modalImg.src=item.img; modal.classList.add("on"); };
+      const b2 = document.createElement("button");
+      b2.className = "btn warn";
+      b2.textContent = "Order";
+      b2.onclick = ()=> gotoOrder(item.img);
+      act.append(b1,b2);
+      card.appendChild(act);
 
-openCatalog.onclick = ()=> location.assign('/products.html');
-toggleHistory.onclick = ()=> drawer.classList.add('on');
-btnCloseDrawer.onclick = ()=> drawer.classList.remove('on');
-btnClearDrawer.onclick = ()=>{ saveHist([]); renderHistory(); };
-clearHistTop.onclick = ()=>{ saveHist([]); renderHistory(); };
+      histBody.appendChild(card);
+    });
+  }
 
-/* ======= Generate ======= */
-btnGen.onclick = async ()=>{
-  result.innerHTML = '<div class="helper">Generating…</div>';
-  msg.textContent = '';
-  btnGen.disabled = true;
-
-  try{
-    // Resolución de referencia: prioridad al upload; si no, a la ref del chip
-    let refData = '';
-    if(upload.files && upload.files[0]) refData = await fileToDataURL(upload.files[0]);
-    else if(currentChip?.ref) refData = currentChip.ref;
-
-    // Negativos y prompt “locked” (solo figura/textos, mantener estilo/composición)
-    const NEGATIVES = [
-      'no background changes','no layout changes','no composition changes','no extra objects',
-      'no new elements','no 3D volume','no gradients','no realistic materials',
-      'keep same lighting','keep same line weights'
-    ].join(', ');
-
-    const user = (promptBox.value||'').trim();
-    const fontName = font.value || 'DM Sans';
-
-    // Prompt final y fidelidad:
-    // - sin prompt => imitación fiel (strength bajo)
-    // - con prompt => cambios moderados (strength medio)
-    const guided = [
-      `Only change the main figure and/or the overlaid texts.`,
-      `Keep the original style, composition, background and line weights.`,
-      `Use font: ${fontName}.`,
-      `Negative prompts: ${NEGATIVES}.`
-    ].join(' ');
-
-    const finalPrompt = user ? `${guided} Instructions: ${user}` : guided;
-    const strength = refData ? (user ? 0.35 : 0.18) : 1.0;   // prioridad a IMITACIÓN cuando no hay prompt
-    const steps = 28;
-
-    // Construir request:
-    // - si hay archivo subido => multipart (file)
-    // - si no, JSON con "ref" (dataURL o https)
-    let resp;
-    if(upload.files && upload.files[0]){
-      const fd = new FormData();
-      fd.append('file', upload.files[0]);
-      fd.append('prompt', finalPrompt);
-      fd.append('font', fontName);
-      fd.append('strength', String(strength));
-      fd.append('steps', String(steps));
-      resp = await withTimeout(fetchJSON(ENDPOINT,{method:'POST',body:fd}));
-    }else{
-      const body = { prompt: finalPrompt, font: fontName, strength, steps };
-      if(refData) body.ref = refData;
-      resp = await withTimeout(fetchJSON(ENDPOINT,{
-        method:'POST',mode:'cors',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(body)
-      }));
-    }
-
-    if(!resp.ok){
-      result.innerHTML = '<div class="helper">No image.</div>';
-      msg.textContent = `Backend error ${resp.status||''}\n${resp.json?.error || resp.text || resp.error || ''}`;
+  // Chip UI
+  const FALLBACK = 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="100%" height="100%" fill="#0b0e13"/><text x="50%" y="50%" fill="#8894a6" font-family="system-ui" font-size="12" dominant-baseline="middle" text-anchor="middle">no image</text></svg>`);
+  function renderChip(){
+    chipBox.innerHTML = "";
+    if(!currentChip){
+      const info = document.createElement("div");
+      info.className = "helper";
+      info.textContent = "You can remove the product chip to work only with your upload and text.";
+      chipBox.appendChild(info);
       return;
     }
-
-    const data = resp.json || {};
-    if(data.image){
-      result.innerHTML = `<img src="${data.image}" alt="result">`;
-      msg.textContent = `Done. Engine: ${data.used || 'replicate:flux-schnell'} • strength=${data.strength||strength}`;
-      // guardar en historial
-      pushHist({ image:data.image, prompt:user, when:Date.now() });
-    }else{
-      result.innerHTML = '<div class="helper">No image in response.</div>';
-      msg.textContent = 'Empty output.';
-    }
-  }catch(e){
-    result.innerHTML = '<div class="helper">No image.</div>';
-    msg.textContent = 'Error: '+(e?.message||e);
-  }finally{
-    btnGen.disabled = false;
+    const box = document.createElement("div");
+    box.className = "chip";
+    const im = new Image(); im.src = currentChip.imageResolved || currentChip.image || FALLBACK; im.alt = "product";
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = `<div>${escapeHTML(currentChip.name||"Product")}</div><small>${escapeHTML(currentChip.category||"")}</small>`;
+    const clr = document.createElement("button");
+    clr.className = "btn light clear"; clr.textContent = "Clear chip";
+    clr.onclick = ()=>{ currentChip = null; sessionStorage.removeItem(NVAI_KEY); renderChip(); };
+    box.append(im, meta, clr);
+    chipBox.appendChild(box);
   }
-};
 
-/* ===== UX helpers ===== */
-function setResult(src){ result.innerHTML = `<img src="${src}" alt="result">`; }
+  // Orders redirect
+  function gotoOrder(dataURL){
+    // pass image via sessionStorage (safer than query string)
+    try{ sessionStorage.setItem("order:image", dataURL); }catch{}
+    location.href = "orders.html";
+  }
+
+  // Proxy health
+  async function checkProxy(){
+    try{
+      const r = await fetch(`${PROXY_BASE}/api/health`, {cache:"no-store"});
+      const j = await r.json();
+      proxyState.textContent = `Proxy: OK (${j.engine.split(":")[0]})`;
+      proxyState.style.background = "#11231c";
+      proxyState.style.border = "1px solid #244b38";
+    }catch(e){
+      proxyState.textContent = "Proxy: FAIL";
+      proxyState.style.background = "#2a1516";
+      proxyState.style.border = "1px solid #5b2c2e";
+    }
+  }
+
+  // ====== Actions ======
+  btnCatalog.onclick = ()=>{ location.href = "products.html"; };
+
+  btnDrawer.onclick = ()=>{ renderHistory(); drawer.classList.add("on"); };
+  btnCloseDrawer.onclick = ()=> drawer.classList.remove("on");
+  btnClearHist.onclick = ()=>{ if(confirm("Clear image history?")){ localStorage.removeItem(HIST_KEY); renderHistory(); } };
+  btnOrderFromCanvas.onclick = ()=>{ if(!currentImage) return alert("Generate an image first."); gotoOrder(currentImage); };
+
+  btnClear.onclick = ()=>{
+    currentImage = null;
+    stage.innerHTML = '<div class="helper">No image yet.</div>';
+    setStatus("");
+    fileUp.value = "";
+  };
+
+  modal.addEventListener("click",(e)=>{ if(e.target===modal) modal.classList.remove("on"); });
+
+  btnGenerate.onclick = async ()=>{
+    try{
+      btnGenerate.disabled = true;
+      setStageLoading(true);
+      setStatus("Preparing…");
+
+      // Build ref priority: upload > chip.image
+      let refData = "";
+      if(fileUp.files && fileUp.files[0]){
+        refData = await readAsDataURL(fileUp.files[0]); // dataURL
+      }else if(currentChip && (currentChip.imageResolved || currentChip.image)){
+        // backend can fetch https or accept dataURL; we pass the best available
+        refData = currentChip.imageResolved || currentChip.image;
+      }
+
+      // negatives & guided
+      const NEGATIVES = [
+        "no background changes",
+        "no layout changes",
+        "no composition changes",
+        "no extra objects",
+        "no new elements",
+        "no 3D volume",
+        "no gradients",
+        "no realistic materials",
+        "keep same lighting",
+        "keep same line weights",
+        "no style drift"
+      ].join(", ");
+
+      // Prompt: if user prompt empty and there is a reference => faithful imitation
+      const user = (promptBox.value||"").trim();
+      const fontName = (fontSel.value||"DM Sans").trim();
+
+      // Strength: lower means more faithful
+      const strength = refData && !user ? 0.18 : 0.35;
+      const steps = refData ? 28 : 24;
+
+      const form = new FormData();
+      if(fileUp.files && fileUp.files[0]){
+        form.append("file", fileUp.files[0]); // upload gets priority server-side
+      }else if(refData){
+        form.append("ref", refData);
+      }
+      form.append("prompt", user);
+      form.append("font", fontName);
+      form.append("negative", NEGATIVES);
+      form.append("strength", String(strength));
+      form.append("steps", String(steps));
+
+      setStatus("Calling backend…");
+      const t0 = Date.now();
+      const resp = await fetch(`${PROXY_BASE}/api/generate`, { method:"POST", body:form });
+      if(!resp.ok){
+        const txt = await resp.text();
+        throw new Error(`Proxy error ${resp.status}: ${txt}`);
+      }
+      const data = await resp.json();
+      if(!data.ok || !data.image) throw new Error(data.msg || "No image returned.");
+      const ms = Date.now()-t0;
+      setStatus(`Done in ${(ms/1000).toFixed(1)}s • engine ${data.used||"replicate"}`);
+
+      showImage(data.image);
+      pushHistory(data.image);
+    }catch(err){
+      console.error(err);
+      setStageLoading(false);
+      alert("Generation failed. " + (err?.message||err));
+      setStatus("Error.");
+    }finally{
+      btnGenerate.disabled = false;
+    }
+  };
+
+  // ====== Init ======
+  (function init(){
+    // pick product from session (products.html -> novaai)
+    try{
+      const raw = sessionStorage.getItem(NVAI_KEY);
+      if(raw){ currentChip = JSON.parse(raw); }
+    }catch{}
+    renderChip();
+
+    // if coming back from products with ?product=…
+    try{
+      const q = new URLSearchParams(location.search);
+      if(q.has("product")){
+        const payload = JSON.parse(decodeURIComponent(atob(q.get("product"))));
+        currentChip = payload;
+        sessionStorage.setItem(NVAI_KEY, JSON.stringify(payload));
+        renderChip();
+      }
+    }catch{}
+
+    checkProxy();
+    renderHistory();
+  })();
+})();
 </script>
 </body>
 </html>
