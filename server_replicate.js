@@ -19,21 +19,32 @@ const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 },
 });
 
-/* ===== CONFIG PERSONALIZADA ===== */
+/* ===== CONFIG ===== */
 const PORT = process.env.PORT || 10000;
-
-// === TUS DATOS REALES ===
-const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || '';
-;
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 const MODEL_VERSION = "jd96x0dyqsrm00cj1jp90zeye0";
 const PUBLIC_BASE = "https://novaai-backend-v2.onrender.com";
-const CORS = ["https://negunova.com"];
 
-const MAX_POLL_MS = 120000;
-const POLL_INTERVAL = 2500;
+// Permitir IONOS + localhost para pruebas
+const ALLOWED_ORIGINS = [
+  "https://negunova.com",
+  "http://localhost:5500",
+];
 
-/* ===== MIDDLEWARE ===== */
-app.use(cors({ origin: CORS, credentials: false }));
+/* ===== CORS (multi-origin + preflight) ===== */
+const corsOptions = {
+  origin(origin, cb) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS: origin ${origin} is not allowed`));
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  maxAge: 86400,
+  credentials: false,
+};
+app.use(cors(corsOptions));
+app.options("/api/*", cors(corsOptions));
+
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
@@ -92,10 +103,10 @@ async function getPrediction(id) {
 
 async function waitForPrediction(id) {
   const t0 = Date.now();
-  while (Date.now() - t0 < MAX_POLL_MS) {
+  while (Date.now() - t0 < 120000) {
     const d = await getPrediction(id);
     if (["succeeded", "failed", "canceled"].includes(d.status)) return d;
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+    await new Promise((r) => setTimeout(r, 2500));
   }
   throw new Error("Timeout waiting for Replicate prediction");
 }
@@ -106,7 +117,8 @@ app.get("/api/health", (req, res) =>
     ok: true,
     engine: "replicate:flux-schnell",
     version: MODEL_VERSION,
-    cors: CORS,
+    origins: ALLOWED_ORIGINS,
+    public_base: PUBLIC_BASE,
   })
 );
 
@@ -119,7 +131,6 @@ app.post("/api/generate", upload.single("file"), async (req, res) => {
     const seed = req.body.seed ? Number(req.body.seed) : undefined;
     const font = (req.body.font || "DM Sans").toString();
 
-    // Resolver referencia: file > dataURL > https
     let imageUrl = null;
     if (req.file) {
       const tmp = saveImageAndGetUrl(req.file.buffer);
@@ -134,10 +145,10 @@ app.post("/api/generate", upload.single("file"), async (req, res) => {
       imageUrl = tmp.url;
     }
 
-    // Prompt guiado + negativos
+    // PROMPT INTELIGENTE (imitación fiel si no hay texto)
     const guided = `Only change the main figure and/or overlaid texts. Keep the original style, composition, background, and line weights. Use font: ${font}.`;
     const imitate = !promptRaw && imageUrl
-      ? ` Imitate the reference image exactly; preserve style, composition and background. `
+      ? ` Imitate the reference image exactly; preserve proportions, lighting, and composition.`
       : "";
     const fullPrompt = (guided + imitate + (promptRaw ? ` Instructions: ${promptRaw}` : "")).trim();
 
@@ -195,9 +206,7 @@ app.post("/api/generate", upload.single("file"), async (req, res) => {
     });
   } catch (err) {
     console.error("[replicate-proxy] error:", err?.response?.data || err.message || err);
-    res
-      .status(500)
-      .json({ ok: false, msg: "Proxy error", error: String(err?.message || err) });
+    res.status(500).json({ ok: false, msg: "Proxy error", error: String(err?.message || err) });
   }
 });
 
@@ -205,5 +214,5 @@ app.listen(PORT, () => {
   console.log(`✅ NovaAI Replicate proxy running on port ${PORT}`);
   console.log(`🧠 Model version: ${MODEL_VERSION}`);
   console.log(`🌐 Public base: ${PUBLIC_BASE}`);
-  console.log(`🌍 CORS origin: ${CORS}`);
+  console.log(`🌍 Allowed origins: ${ALLOWED_ORIGINS.join(", ")}`);
 });
