@@ -40,9 +40,24 @@ const DEFAULT_MODEL = (process.env.DEFAULT_MODEL || 'bytedance/seededit-3.0').tr
 const DEFAULT_VERSION = (process.env.DEFAULT_VERSION || '5hwtb2bp9hrmc0cszwdrj7v564').trim();
 // UI/Networking
 const PUBLIC_BASE = (process.env.PUBLIC_BASE_URL || '').trim();
-const CORS = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
-  : true;
+// --- CORS robusto ---
+const raw = process.env.CORS_ORIGIN || '';
+const ALLOW = raw.split(',').map(s => s.trim()).filter(Boolean); // lista blanca
+const corsOpts = {
+  origin(origin, cb) {
+    // permitir llamadas sin Origin (p. ej. curl, health-checks)
+    if (!origin) return cb(null, true);
+    if (ALLOW.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS: origin ${origin} is not allowed`));
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+  maxAge: 86400
+};
+app.use(cors(corsOpts));
+app.options('*', cors(corsOpts)); // preflight
+
 
 // Polling
 const MAX_POLL_MS = Number(process.env.MAX_POLL_MS || 120000);    // 120s
@@ -271,3 +286,4 @@ function clampInt(n, min, max) {
   const v = Number.isFinite(n) ? Math.round(n) : min;
   return Math.max(min, Math.min(max, v));
 }
+
