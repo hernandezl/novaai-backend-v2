@@ -1,60 +1,67 @@
 // server_replicate.js
-// NovaAI Proxy → Replicate (Flux-Schnell) image-to-image con fidelidad
+// NovaAI Proxy -> Replicate (image-to-image / edit) sin "version" (evita 422)
 // Endpoints:
 //   GET  /api/health
 //   POST /api/generate
+//
+// Entrada:
+//  - multipart/form-data: field "file" (imagen) + campos "prompt","negative","font","strength","steps","seed","model"
+//  - JSON: { ref, prompt, negative, font, strength, steps, seed, model }
+//
+// Requiere .env en Render con:
+//  - REPLICATE_API_TOKEN = r8_************************
+//  - REPLICATE_MODEL_ID  = black-forest-labs/flux-kontext-pro   (por defecto recomendado)
+//  - PUBLIC_BASE_URL     = https://novaai-backend-v2.onrender.com
+//  - CORS_ORIGIN         = https://negunova.com,https://www.negunova.com
 
 import express from "express";
 import multer from "multer";
 import axios from "axios";
 import cors from "cors";
+import dotenv from "dotenv";
 import { nanoid } from "nanoid";
 import fs from "fs";
 import path from "path";
 import os from "os";
 
+dotenv.config();
+
 const app = express();
+
+// ===== CONFIG =====
+const PORT = Number(process.env.PORT || 3001);
+const CORS_LIST = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map(s => s.trim())
+  : true;
+
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || "";
+const DEFAULT_MODEL_ID =
+  process.env.REPLICATE_MODEL_ID || "black-forest-labs/flux-kontext-pro";
+
+const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || ""; // ej https://novaai-backend-v2.onrender.com
+const MAX_POLL_MS = Number(process.env.MAX_POLL_MS || 120000);
+const POLL_INTERVAL = Number(process.env.POLL_INTERVAL || 2500);
+
+if (!REPLICATE_API_TOKEN) {
+  console.error("FATAL: missing REPLICATE_API_TOKEN");
+  process.exit(1);
+}
+
+if (!PUBLIC_BASE) {
+  console.warn("WARN: set PUBLIC_BASE_URL to expose /tmp images.");
+}
+
+// ===== MIDDLEWARE =====
+app.use(cors({ origin: CORS_LIST, credentials: false }));
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ extended: true, limit: "20mb" }));
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
 });
 
-/* ===== CONFIG ===== */
-const PORT = process.env.PORT || 10000;
-const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-const MODEL_VERSION = "jd96x0dyqsrm00cj1jp90zeye0";              // Flux-Schnell (Replicate model version)
-const PUBLIC_BASE = "https://novaai-backend-v2.onrender.com";    // TU URL en Render
-
-// CORS: admite ambos dominios (www y no-www) y localhost para pruebas
-const ALLOWED_ORIGINS = new Set([
-  "https://negunova.com",
-  "http://negunova.com",
-  "https://www.negunova.com",
-  "http://www.negunova.com",
-  "http://localhost:5500",
-  "http://127.0.0.1:5500"
-]);
-
-/* ===== CORS (multi-origin + preflight) ===== */
-const corsOptions = {
-  origin(origin, cb) {
-    // Navegadores pueden mandar null (por ejemplo, tests locales sin origin). Permitimos null de forma segura.
-    if (!origin) return cb(null, true);
-    if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
-    return cb(new Error(`CORS: origin ${origin} is not allowed`));
-  },
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: false,
-  maxAge: 86400,
-};
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // preflight para cualquier ruta
-
-app.use(express.json({ limit: "20mb" }));
-app.use(express.urlencoded({ extended: true, limit: "20mb" }));
-
-/* ===== TMP STORAGE ===== */
+// ===== TMP storage público =====
 const TMP_DIR = path.join(os.tmpdir(), "novaai_tmp");
 fs.mkdirSync(TMP_DIR, { recursive: true });
 
@@ -83,11 +90,13 @@ function dataUriToBuffer(uri) {
   return Buffer.from(m[2], "base64");
 }
 
-/* ===== REPLICATE HELPERS ===== */
-async function createPrediction(input) {
+// ===== Replicate helpers (sin version) =====
+async function createPredictionByModel(modelId, input) {
+  // POST /v1/models/{owner}/{name}/predictions
+  const url = `https://api.replicate.com/v1/models/${modelId}/predictions`;
   const resp = await axios.post(
-    "https://api.replicate.com/v1/predictions",
-    { version: MODEL_VERSION, input },
+    url,
+    { input },
     {
       headers: {
         Authorization: `Token ${REPLICATE_API_TOKEN}`,
@@ -96,109 +105,141 @@ async function createPrediction(input) {
       timeout: 20000,
     }
   );
-  return resp.data;
+  return resp.data; // { id, status, ... }
 }
 
 async function getPrediction(id) {
-  const resp = await axios.get(`https://api.replicate.com/v1/predictions/${id}`, {
-    headers: { Authorization: `Token ${REPLICATE_API_TOKEN}` },
-    timeout: 15000,
-  });
+  const resp = await axios.get(
+    `https://api.replicate.com/v1/predictions/${id}`,
+    {
+      headers: { Authorization: `Token ${REPLICATE_API_TOKEN}` },
+      timeout: 15000,
+    }
+  );
   return resp.data;
 }
 
 async function waitForPrediction(id) {
   const t0 = Date.now();
-  while (Date.now() - t0 < 120000) {
+  while (Date.now() - t0 < MAX_POLL_MS) {
     const d = await getPrediction(id);
-    if (["succeeded", "failed", "canceled"].includes(d.status)) return d;
-    await new Promise((r) => setTimeout(r, 2500));
+    if (
+      d.status === "succeeded" ||
+      d.status === "failed" ||
+      d.status === "canceled"
+    ) {
+      return d;
+    }
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
   }
   throw new Error("Timeout waiting for Replicate prediction");
 }
 
-/* ===== API ===== */
+// ===== health =====
 app.get("/api/health", (req, res) =>
   res.json({
     ok: true,
-    engine: "replicate:flux-schnell",
-    version: MODEL_VERSION,
-    origins: Array.from(ALLOWED_ORIGINS),
-    public_base: PUBLIC_BASE,
+    engine: "replicate",
+    default_model: DEFAULT_MODEL_ID,
+    public_base: PUBLIC_BASE || "(set PUBLIC_BASE_URL)",
+    cors: Array.isArray(CORS_LIST) ? CORS_LIST : "true",
   })
 );
 
+// ===== generate =====
 app.post("/api/generate", upload.single("file"), async (req, res) => {
   try {
-    const promptRaw = (req.body.prompt || "").toString().trim();
-    const negative = (req.body.negative || "").toString().trim();
-    const strength = Math.max(0.0, Math.min(1.0, Number(req.body.strength || 0.20)));
-    const steps = Math.max(12, Math.min(50, parseInt(req.body.steps || 28, 10)));
-    const seed = req.body.seed ? Number(req.body.seed) : undefined;
-    const font = (req.body.font || "DM Sans").toString();
+    // 1) resolver imagen de referencia
+    let refUrl = null;
 
-    let imageUrl = null;
     if (req.file) {
       const tmp = saveImageAndGetUrl(req.file.buffer);
-      imageUrl = tmp.url;
+      refUrl = tmp.url;
     } else if (req.body.ref && /^data:/.test(req.body.ref)) {
       const buf = dataUriToBuffer(req.body.ref);
       const tmp = saveImageAndGetUrl(buf);
-      imageUrl = tmp.url;
+      refUrl = tmp.url;
     } else if (req.body.ref && /^https?:\/\//i.test(req.body.ref)) {
       const buf = await fetchAsBuffer(req.body.ref);
       const tmp = saveImageAndGetUrl(buf);
-      imageUrl = tmp.url;
+      refUrl = tmp.url;
     }
 
-    // PROMPT INTELIGENTE (imitación fiel si no hay texto)
-    const guided = `Only change the main figure and/or overlaid texts. Keep the original style, composition, background, and line weights. Use font: ${font}.`;
-    const imitate = !promptRaw && imageUrl
-      ? ` Imitate the reference image exactly; preserve proportions, lighting, and composition.`
-      : "";
-    const fullPrompt = (guided + imitate + (promptRaw ? ` Instructions: ${promptRaw}` : "")).trim();
+    // 2) parámetros comunes
+    const promptRaw = (req.body.prompt || "").toString().trim();
+    const negative = (req.body.negative || "").toString().trim();
+    const font = (req.body.font || "DM Sans").toString().trim();
 
-    const neg =
-      negative ||
-      [
-        "no background changes",
-        "no layout changes",
-        "no composition changes",
-        "no extra objects",
-        "no new elements",
-        "no 3D volume",
-        "no gradients",
-        "no realistic materials",
-        "keep same lighting",
-        "keep same line weights",
-        "no style drift",
-      ].join(", ");
+    // strength bajo = más fidelidad a la ref
+    const strength = Math.max(
+      0.0,
+      Math.min(1.0, Number(req.body.strength ?? (refUrl ? 0.20 : 1.0)))
+    );
+    const steps = Math.max(12, Math.min(50, parseInt(req.body.steps || 28, 10)));
+    const seed = req.body.seed ? Number(req.body.seed) : undefined;
 
-    const input = {
+    // modelo pedido por el front o por defecto
+    const modelId = (req.body.model || DEFAULT_MODEL_ID).trim();
+
+    // 3) Prompt “locked” + negativos para no tocar fondo/estilo
+    const guided =
+      `Only change the main figure and/or the overlaid texts. ` +
+      `Keep the original style, composition, background, and line weights. ` +
+      `Use font: ${font}.`;
+    const fullPrompt = promptRaw ? `${guided} Instructions: ${promptRaw}` : guided;
+
+    const negDefault = [
+      "no background changes",
+      "no layout changes",
+      "no composition changes",
+      "no extra objects",
+      "no new elements",
+      "no 3D volume",
+      "no gradients",
+      "no realistic materials",
+      "keep same lighting",
+      "keep same line weights",
+      "no style drift",
+    ].join(", ");
+
+    const neg = negative || negDefault;
+
+    // 4) Input según modelo (Kontext/SEED-3 suelen aceptar este set)
+    const baseInput = {
       prompt: fullPrompt,
       negative_prompt: neg,
-      guidance: 3.5,
       num_inference_steps: steps,
-      strength: imageUrl ? strength : 1.0,
+      guidance: 3.5,
     };
-    if (imageUrl) input.image = imageUrl;
-    if (seed !== undefined) input.seed = seed;
-
-    const pred = await createPrediction(input);
-    const final = await waitForPrediction(pred.id);
-
-    if (final.status !== "succeeded") {
-      return res.status(502).json({
-        ok: false,
-        msg: `Generation failed: ${final.status}`,
-        logs: final.logs || null,
-      });
+    if (seed !== undefined) baseInput.seed = seed;
+    if (refUrl) {
+      baseInput.image = refUrl;
+      baseInput.strength = strength;
     }
 
-    const outArr = Array.isArray(final.output) ? final.output : [final.output].filter(Boolean);
-    if (!outArr.length)
-      return res.status(502).json({ ok: false, msg: "No output image URLs" });
+    // Algunos modelos usan otros nombres (por ahora mapeo común funciona para:
+    // - black-forest-labs/flux-kontext-pro
+    // - bytedance/seedream-3
+    // - qwen/qwen-image-edit (en ediciones simples)
+    const pred = await createPredictionByModel(modelId, baseInput);
 
+    const final = await waitForPrediction(pred.id);
+    if (final.status !== "succeeded") {
+      return res
+        .status(502)
+        .json({ ok: false, msg: `Generation failed: ${final.status}`, logs: final.logs || null });
+    }
+
+    // salida: array de URLs
+    const outArr = Array.isArray(final.output)
+      ? final.output
+      : [final.output].filter(Boolean);
+
+    if (!outArr.length) {
+      return res.status(502).json({ ok: false, msg: "No output image URLs" });
+    }
+
+    // devuelve como dataURL (útil para la UI)
     const imgUrl = outArr[0];
     const imgBuf = await fetchAsBuffer(imgUrl);
     const b64 = imgBuf.toString("base64");
@@ -206,19 +247,31 @@ app.post("/api/generate", upload.single("file"), async (req, res) => {
     return res.json({
       ok: true,
       image: `data:image/png;base64,${b64}`,
-      used: "replicate:flux-schnell",
+      used: `replicate:${modelId}`,
       strength,
       steps,
     });
   } catch (err) {
-    console.error("[replicate-proxy] error:", err?.response?.data || err.message || err);
-    res.status(500).json({ ok: false, msg: "Proxy error", error: String(err?.message || err) });
+    const detail = err?.response?.data || err?.message || err;
+    console.error("[replicate-proxy] error:", detail);
+    // Propaga detalle cuando es 422 para diagnóstico
+    const code = err?.response?.status || 500;
+    res.status(code).json({
+      ok: false,
+      msg: "proxy error",
+      error: typeof detail === "string" ? detail : JSON.stringify(detail),
+    });
   }
 });
 
+// ===== start =====
 app.listen(PORT, () => {
-  console.log(`✅ NovaAI Replicate proxy running on port ${PORT}`);
-  console.log(`🧠 Model version: ${MODEL_VERSION}`);
-  console.log(`🌐 Public base: ${PUBLIC_BASE}`);
-  console.log(`🌍 Allowed origins: ${Array.from(ALLOWED_ORIGINS).join(", ")}`);
+  console.log(`NovaAI Replicate proxy listening on :${PORT}`);
+  console.log(`Default model: ${DEFAULT_MODEL_ID}`);
+  console.log(`Public base: ${PUBLIC_BASE || "(set PUBLIC_BASE_URL!)"}`);
+  console.log(
+    `Allowed origins: ${
+      Array.isArray(CORS_LIST) ? CORS_LIST.join(", ") : "true"
+    }`
+  );
 });
