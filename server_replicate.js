@@ -1,5 +1,5 @@
 // server_replicate.js
-// NovaAI Proxy -> Replicate (image-to-image / edit) sin "version" (evita 422)
+// NovaAI Proxy -> Replicate (image-to-image / edit) usando /v1/predictions con "model"
 // Endpoints:
 //   GET  /api/health
 //   POST /api/generate
@@ -8,9 +8,9 @@
 //  - multipart/form-data: field "file" (imagen) + campos "prompt","negative","font","strength","steps","seed","model"
 //  - JSON: { ref, prompt, negative, font, strength, steps, seed, model }
 //
-// Requiere .env en Render con:
+// .env (Render):
 //  - REPLICATE_API_TOKEN = r8_************************
-//  - REPLICATE_MODEL_ID  = black-forest-labs/flux-kontext-pro   (por defecto recomendado)
+//  - REPLICATE_MODEL_ID  = black-forest-labs/flux-kontext-pro   (default recomendado)
 //  - PUBLIC_BASE_URL     = https://novaai-backend-v2.onrender.com
 //  - CORS_ORIGIN         = https://negunova.com,https://www.negunova.com
 
@@ -31,14 +31,14 @@ const app = express();
 // ===== CONFIG =====
 const PORT = Number(process.env.PORT || 3001);
 const CORS_LIST = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",").map(s => s.trim())
+  ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
   : true;
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 const DEFAULT_MODEL_ID =
   process.env.REPLICATE_MODEL_ID || "black-forest-labs/flux-kontext-pro";
 
-const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || ""; // ej https://novaai-backend-v2.onrender.com
+const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || "";
 const MAX_POLL_MS = Number(process.env.MAX_POLL_MS || 120000);
 const POLL_INTERVAL = Number(process.env.POLL_INTERVAL || 2500);
 
@@ -46,7 +46,6 @@ if (!REPLICATE_API_TOKEN) {
   console.error("FATAL: missing REPLICATE_API_TOKEN");
   process.exit(1);
 }
-
 if (!PUBLIC_BASE) {
   console.warn("WARN: set PUBLIC_BASE_URL to expose /tmp images.");
 }
@@ -61,7 +60,7 @@ const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 },
 });
 
-// ===== TMP storage público =====
+// ===== TMP público para que Replicate pueda leer la imagen =====
 const TMP_DIR = path.join(os.tmpdir(), "novaai_tmp");
 fs.mkdirSync(TMP_DIR, { recursive: true });
 
@@ -90,13 +89,11 @@ function dataUriToBuffer(uri) {
   return Buffer.from(m[2], "base64");
 }
 
-// ===== Replicate helpers (sin version) =====
-async function createPredictionByModel(modelId, input) {
-  // POST /v1/models/{owner}/{name}/predictions
-  const url = `https://api.replicate.com/v1/models/${modelId}/predictions`;
+// ===== Replicate helpers (sin version, vía /v1/predictions) =====
+async function createPrediction(modelId, input) {
   const resp = await axios.post(
-    url,
-    { input },
+    "https://api.replicate.com/v1/predictions",
+    { model: modelId, input },
     {
       headers: {
         Authorization: `Token ${REPLICATE_API_TOKEN}`,
@@ -123,13 +120,7 @@ async function waitForPrediction(id) {
   const t0 = Date.now();
   while (Date.now() - t0 < MAX_POLL_MS) {
     const d = await getPrediction(id);
-    if (
-      d.status === "succeeded" ||
-      d.status === "failed" ||
-      d.status === "canceled"
-    ) {
-      return d;
-    }
+    if (["succeeded", "failed", "canceled"].includes(d.status)) return d;
     await new Promise((r) => setTimeout(r, POLL_INTERVAL));
   }
   throw new Error("Timeout waiting for Replicate prediction");
@@ -149,9 +140,8 @@ app.get("/api/health", (req, res) =>
 // ===== generate =====
 app.post("/api/generate", upload.single("file"), async (req, res) => {
   try {
-    // 1) resolver imagen de referencia
+    // 1) Imagen de referencia
     let refUrl = null;
-
     if (req.file) {
       const tmp = saveImageAndGetUrl(req.file.buffer);
       refUrl = tmp.url;
@@ -165,23 +155,21 @@ app.post("/api/generate", upload.single("file"), async (req, res) => {
       refUrl = tmp.url;
     }
 
-    // 2) parámetros comunes
+    // 2) Parámetros comunes
     const promptRaw = (req.body.prompt || "").toString().trim();
     const negative = (req.body.negative || "").toString().trim();
     const font = (req.body.font || "DM Sans").toString().trim();
 
-    // strength bajo = más fidelidad a la ref
     const strength = Math.max(
       0.0,
-      Math.min(1.0, Number(req.body.strength ?? (refUrl ? 0.20 : 1.0)))
+      Math.min(1.0, Number(req.body.strength ?? (refUrl ? 0.2 : 1.0)))
     );
     const steps = Math.max(12, Math.min(50, parseInt(req.body.steps || 28, 10)));
     const seed = req.body.seed ? Number(req.body.seed) : undefined;
 
-    // modelo pedido por el front o por defecto
     const modelId = (req.body.model || DEFAULT_MODEL_ID).trim();
 
-    // 3) Prompt “locked” + negativos para no tocar fondo/estilo
+    // 3) Prompt bloqueado + negativos para no cambiar fondo/estilo
     const guided =
       `Only change the main figure and/or the overlaid texts. ` +
       `Keep the original style, composition, background, and line weights. ` +
@@ -201,45 +189,35 @@ app.post("/api/generate", upload.single("file"), async (req, res) => {
       "keep same line weights",
       "no style drift",
     ].join(", ");
-
     const neg = negative || negDefault;
 
-    // 4) Input según modelo (Kontext/SEED-3 suelen aceptar este set)
-    const baseInput = {
+    // 4) Input común (Kontext Pro / SEED-3 lo aceptan; Qwen Edit simple también)
+    const input = {
       prompt: fullPrompt,
       negative_prompt: neg,
       num_inference_steps: steps,
       guidance: 3.5,
     };
-    if (seed !== undefined) baseInput.seed = seed;
+    if (seed !== undefined) input.seed = seed;
     if (refUrl) {
-      baseInput.image = refUrl;
-      baseInput.strength = strength;
+      input.image = refUrl;
+      input.strength = strength;
     }
 
-    // Algunos modelos usan otros nombres (por ahora mapeo común funciona para:
-    // - black-forest-labs/flux-kontext-pro
-    // - bytedance/seedream-3
-    // - qwen/qwen-image-edit (en ediciones simples)
-    const pred = await createPredictionByModel(modelId, baseInput);
-
+    const pred = await createPrediction(modelId, input);
     const final = await waitForPrediction(pred.id);
+
     if (final.status !== "succeeded") {
       return res
         .status(502)
         .json({ ok: false, msg: `Generation failed: ${final.status}`, logs: final.logs || null });
     }
 
-    // salida: array de URLs
     const outArr = Array.isArray(final.output)
       ? final.output
       : [final.output].filter(Boolean);
+    if (!outArr.length) return res.status(502).json({ ok: false, msg: "No output image URLs" });
 
-    if (!outArr.length) {
-      return res.status(502).json({ ok: false, msg: "No output image URLs" });
-    }
-
-    // devuelve como dataURL (útil para la UI)
     const imgUrl = outArr[0];
     const imgBuf = await fetchAsBuffer(imgUrl);
     const b64 = imgBuf.toString("base64");
@@ -254,7 +232,6 @@ app.post("/api/generate", upload.single("file"), async (req, res) => {
   } catch (err) {
     const detail = err?.response?.data || err?.message || err;
     console.error("[replicate-proxy] error:", detail);
-    // Propaga detalle cuando es 422 para diagnóstico
     const code = err?.response?.status || 500;
     res.status(code).json({
       ok: false,
