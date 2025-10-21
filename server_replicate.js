@@ -1,71 +1,89 @@
-// ---- helpers arriba del todo o junto a otras utils
-const ABS_HTTPS = (url, base) => {
-  try {
-    if (!url) return '';
-    if (/^(data|https?):/i.test(url)) return url;
-    if (url.startsWith('//')) return 'https:' + url;
-    if (url.startsWith('/')) {
-      const u = new URL(base || process.env.PUBLIC_BASE || 'https://www.negunova.com/');
-      return u.origin + url;
-    }
-    // cualquier otra cosa: lo tratamos como relativo a base
-    const u = new URL(base || process.env.PUBLIC_BASE || 'https://www.negunova.com/');
-    return new URL(url, u.origin + '/').href.replace(/^http:/, 'https:');
-  } catch {
-    return url;
-  }
-};
+// server_replicate.js
+import express from "express";
+import fetch from "node-fetch";
+import cors from "cors";
+import dotenv from "dotenv";
 
-function pickRef(body){
-  // acepta múltiples nombres
-  const raw =
-    body?.ref ??
-    body?.image ??
-    body?.image_url ??
-    body?.input?.image ??
-    '';
-  return (raw ?? '').toString().trim();
+dotenv.config();
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+app.use(cors());
+
+// Verifica que el token exista
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
+if (!REPLICATE_API_TOKEN) {
+  console.error("❌ Falta REPLICATE_API_TOKEN en .env");
+  process.exit(1);
 }
 
-// ---- endpoint de diagnóstico (déjalo)
-app.post('/api/echo', express.json(), (req, res) => {
-  const raw = pickRef(req.body);
-  const ref = ABS_HTTPS(raw, process.env.PUBLIC_BASE);
-  return res.json({
-    ok: true,
-    received: { raw, ref, len: ref?.length || 0, startsWith: ref?.slice(0, 32) || '' },
-    hint: 'ref debe empezar con https:// o data: . blob:/idb: no sirven en el servidor.'
-  });
+// Ruta principal para probar salud
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, status: "Replicate proxy ready" });
 });
 
-// ---- en /api/generate, justo al empezar
-app.post('/api/generate', express.json({ limit: '12mb' }), async (req, res) => {
+// Ruta de generación de imagen
+app.post("/api/generate", async (req, res) => {
   try {
-    const { model, prompt, font, strength, steps } = req.body || {};
-    const rawRef = pickRef(req.body);
-    const ref = ABS_HTTPS(rawRef, process.env.PUBLIC_BASE);
+    const { model, version, prompt, ref } = req.body;
 
-    // logs claros
-    console.log('[generate] rawRef=', rawRef);
-    console.log('[generate] ref=', ref, 'len=', (ref || '').length, 'head=', (ref || '').slice(0, 40));
-
-    // validación + mensaje útil
-    if (!ref || !/^(https:|data:)/i.test(ref)) {
-      return res.status(400).json({
-        ok: false,
-        status: 400,
-        msg: 'Missing or invalid reference image',
-        server_saw: { rawRef, ref, len: (ref || '').length, startsWith: (ref || '').slice(0, 32) },
-        fix: 'Envía un dataURL (data:image/...) o una URL https pública. Rutas relativas/bloc/idb no sirven.'
-      });
+    if (!model || !version) {
+      return res
+        .status(422)
+        .json({ ok: false, msg: "Faltan parámetros: model o version" });
     }
 
-    // ... aquí ya llamas a tu función de Replicate con {model, ref, prompt, ...}
-    // const outputUrl = await runReplicate({ model, ref, prompt, font, strength, steps });
-    // return res.json({ ok: true, output: outputUrl });
+    const input = {};
+    if (prompt) input.prompt = prompt;
+    if (ref) input.image = ref;
 
-  } catch (e) {
-    console.error('[generate] error:', e);
-    return res.status(500).json({ ok: false, status: 500, msg: 'proxy error', error: String(e?.message || e) });
+    const response = await fetch("https://api.replicate.com/v1/predictions", {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${REPLICATE_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        version,
+        input,
+      }),
+    });
+
+    const data = await response.json();
+    if (response.ok && data?.urls?.get) {
+      // Polling rápido para obtener la salida final
+      let output = null;
+      for (let i = 0; i < 12; i++) {
+        const poll = await fetch(data.urls.get, {
+          headers: { Authorization: `Token ${REPLICATE_API_TOKEN}` },
+        });
+        const pollData = await poll.json();
+        if (pollData.status === "succeeded" && pollData.output) {
+          output = pollData.output[0];
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
+      if (output)
+        return res.json({ ok: true, image: output, model, version, prompt });
+
+      return res.status(202).json({
+        ok: false,
+        msg: "Modelo iniciado, pero sin resultado aún",
+      });
+    } else {
+      return res
+        .status(400)
+        .json({ ok: false, msg: "Error al crear predicción", data });
+    }
+  } catch (err) {
+    console.error("❌ Error interno:", err);
+    res.status(500).json({ ok: false, msg: "Error interno del servidor" });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ NovaAI Replicate proxy listening on port ${PORT}`);
 });
