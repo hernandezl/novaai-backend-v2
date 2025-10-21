@@ -5,8 +5,8 @@
 //   POST /api/generate
 //
 // Acepta:
-//  - multipart/form-data:  field "file" (imagen) + campos "prompt", "font", "negative", "strength", "steps", "seed",
-//                         "model" (opcional), "version" (opcional), "mode" (customer|fast)
+//  - multipart/form-data: field "file" (imagen) + campos "prompt","font","negative","strength","steps","seed",
+//                        "model"(opcional), "version"(opcional), "mode"(customer|fast)
 //  - JSON: { ref, prompt, font, negative, strength, steps, seed, model?, version?, mode? }
 //
 // Prioriza "file" si existe. Si no hay prompt y sí hay referencia → imitación fiel (strength bajo).
@@ -35,19 +35,21 @@ const upload = multer({
 
 const PORT = Number(process.env.PORT || 3000);
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || '';
-// Defaults: SEED-3 edit
-const DEFAULT_MODEL = (process.env.DEFAULT_MODEL || 'bytedance/seededit-3.0').trim();
+
+// Modelo por defecto (puedes sobreescribir con env)
+const DEFAULT_MODEL   = (process.env.DEFAULT_MODEL   || 'bytedance/seededit-3.0').trim();
 const DEFAULT_VERSION = (process.env.DEFAULT_VERSION || '5hwtb2bp9hrmc0cszwdrj7v564').trim();
-// UI/Networking
+
+// URL pública (Render) para exponer /tmp a Replicate
 const PUBLIC_BASE = (process.env.PUBLIC_BASE_URL || '').trim();
-// --- CORS robusto ---
-const raw = process.env.CORS_ORIGIN || '';
-const ALLOW = raw.split(',').map(s => s.trim()).filter(Boolean); // lista blanca
+
+// ── CORS robusto (lista blanca desde env CORS_ORIGIN, separada por comas) ──────
+const rawCors = process.env.CORS_ORIGIN || '';
+const ALLOW = rawCors.split(',').map(s => s.trim()).filter(Boolean);
 const corsOpts = {
   origin(origin, cb) {
-    // permitir llamadas sin Origin (p. ej. curl, health-checks)
-    if (!origin) return cb(null, true);
-    if (ALLOW.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true);                 // permite llamadas sin Origin (curl/health)
+    if (ALLOW.includes(origin)) return cb(null, true);  // coincide con la whitelist
     return cb(new Error(`CORS: origin ${origin} is not allowed`));
   },
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -58,10 +60,9 @@ const corsOpts = {
 app.use(cors(corsOpts));
 app.options('*', cors(corsOpts)); // preflight
 
-
 // Polling
-const MAX_POLL_MS = Number(process.env.MAX_POLL_MS || 120000);    // 120s
-const POLL_INTERVAL = Number(process.env.POLL_INTERVAL || 2500);  // 2.5s
+const MAX_POLL_MS   = Number(process.env.MAX_POLL_MS   || 120000); // 120s
+const POLL_INTERVAL = Number(process.env.POLL_INTERVAL || 2500);   // 2.5s
 
 if (!REPLICATE_API_TOKEN) {
   console.error('FATAL: missing REPLICATE_API_TOKEN');
@@ -71,7 +72,7 @@ if (!PUBLIC_BASE) {
   console.warn('WARN: set PUBLIC_BASE_URL so Replicate can fetch /tmp/:id');
 }
 
-app.use(cors({ origin: CORS, credentials: false }));
+// Body parsers
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
@@ -107,7 +108,7 @@ function dataUriToBuffer(uri) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
-/** Replicate helpers */
+// Replicate helpers
 // ────────────────────────────────────────────────────────────────────────────────
 async function createPrediction({ modelVersion, input }) {
   const resp = await axios.post('https://api.replicate.com/v1/predictions', {
@@ -144,7 +145,7 @@ async function waitForPrediction(id) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
-/** Health */
+// Health
 // ────────────────────────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
@@ -152,31 +153,31 @@ app.get('/api/health', (req, res) => {
     engine: 'replicate',
     default_model: DEFAULT_MODEL,
     version: DEFAULT_VERSION,
-    cors: Array.isArray(CORS) ? CORS : '(* open *)',
+    allow: ALLOW,
     public_base: PUBLIC_BASE || '(set PUBLIC_BASE_URL!)'
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
-/** Generate */
+// Generate
 // ────────────────────────────────────────────────────────────────────────────────
 app.post('/api/generate', upload.single('file'), async (req, res) => {
   try {
-    // ── payload básico ──────────────────────────────────────────────────────────
     const promptRaw = (req.body.prompt || '').toString().trim();
     const negative  = (req.body.negative || '').toString().trim();
     const fontName  = (req.body.font || 'DM Sans').toString().trim();
-    // Strength: 0 = extremadamente fiel (más imagen), 1 = más texto (menos fidelidad)
+
+    // Strength: 0 = muy fiel a la imagen; 1 = más libertad al texto
     const strength  = clamp(Number(req.body.strength ?? 0.20), 0, 1);
     const steps     = clampInt(Number(req.body.steps ?? 28), 12, 80);
     const seed      = req.body.seed !== undefined && req.body.seed !== '' ? Number(req.body.seed) : undefined;
 
-    // Modo & modelo (overrides)
-    const mode      = (req.body.mode || 'customer').toString(); // 'customer' (alta fidelidad) | 'fast'
+    // Overrides
+    const mode      = (req.body.mode || 'customer').toString(); // 'customer' | 'fast'
     const model     = (req.body.model || DEFAULT_MODEL).toString().trim();
     const version   = (req.body.version || DEFAULT_VERSION).toString().trim();
 
-    // ── resolver imagen de referencia ─────────────────────────────────────────
+    // Imagen de referencia
     let imageUrl = null;
     if (req.file) {
       const tmp = saveImageAndGetUrl(req.file.buffer);
@@ -190,12 +191,11 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
       const tmp = saveImageAndGetUrl(buf);
       imageUrl = tmp.url;
     }
-
     if (!imageUrl) {
       return res.status(400).json({ ok: false, msg: 'Missing reference image. Provide file or ref (dataURL/https).' });
     }
 
-    // ── prompt “bloqueado” + negativos para no alterar estilo/composición ─────
+    // Prompt “bloqueado” + negativos para no alterar estilo/composición
     const guard = `Only change the main figure and/or texts. Keep original style, composition, background, lighting, and line weights. Use font: ${fontName}.`;
     const fullPrompt = promptRaw ? `${guard} Instructions: ${promptRaw}` : guard;
 
@@ -212,15 +212,12 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
       'keep same line weights'
     ].join(', ');
 
-    // ── parámetros por “mode” ─────────────────────────────────────────────────
-    // customer = más fidelidad a la imagen (menor strength)
-    // fast     = más rapidez / más espacio al texto
+    // Parámetros por modo
     const modeCfg = (mode === 'fast')
       ? { guidance: 3.0, steps: Math.min(steps, 28), strength: Math.max(strength, 0.35) }
       : { guidance: 4.0, steps: Math.max(steps, 24), strength: Math.min(strength, 0.25) };
 
-    // ── input para Replicate (SEED-3 y compatibles) ────────────────────────────
-    // La mayoría de editores aceptan: prompt, image, negative_prompt, num_inference_steps, guidance, strength, seed
+    // Input para Replicate
     const input = {
       prompt: fullPrompt,
       image: imageUrl,
@@ -231,9 +228,9 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
     };
     if (seed !== undefined && !Number.isNaN(seed)) input.seed = seed;
 
-    // ── lanzar predicción ──────────────────────────────────────────────────────
     console.log('==> Replicate create', { model, version, mode, strength: input.strength, steps: input.num_inference_steps });
-    const pred = await createPrediction({ modelVersion: version, input });
+
+    const pred  = await createPrediction({ modelVersion: version, input });
     const final = await waitForPrediction(pred.id);
 
     if (final.status !== 'succeeded') {
@@ -244,9 +241,9 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
     const outArr = Array.isArray(final.output) ? final.output : [final.output].filter(Boolean);
     if (!outArr.length) return res.status(502).json({ ok: false, msg: 'No output image URLs' });
 
-    const url0 = outArr[0];
+    const url0   = outArr[0];
     const imgBuf = await fetchAsBuffer(url0);
-    const b64 = imgBuf.toString('base64');
+    const b64    = imgBuf.toString('base64');
 
     return res.json({
       ok: true,
@@ -260,7 +257,6 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
   } catch (err) {
     const det = err?.response?.data || err?.message || err;
     console.error('[replicate-proxy] error:', det);
-    // errores comunes:
     // 422: "Invalid version or not permitted" → version id incorrecta
     // 404: "The requested resource could not be found" → version inexistente
     return res.status(500).json({ ok: false, msg: 'Proxy error', error: String(err?.message || err) });
@@ -274,7 +270,7 @@ app.listen(PORT, () => {
   console.log('==> Default model:', DEFAULT_MODEL);
   console.log('==> Default version:', DEFAULT_VERSION);
   console.log('==> Public base:', PUBLIC_BASE || '(set PUBLIC_BASE_URL!)');
-  console.log('==> Allowed origins:', Array.isArray(CORS) ? CORS.join(', ') : '(* open *)');
+  console.log('==> Allowed origins:', ALLOW.length ? ALLOW.join(', ') : '(* open *)');
   console.log('////////////////////////////////////////////////////////////');
 });
 
@@ -286,4 +282,3 @@ function clampInt(n, min, max) {
   const v = Number.isFinite(n) ? Math.round(n) : min;
   return Math.max(min, Math.min(max, v));
 }
-
