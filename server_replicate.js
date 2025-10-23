@@ -1,131 +1,114 @@
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch";
 import multer from "multer";
-import bodyParser from "body-parser";
 import Replicate from "replicate";
 
+// === App base ===
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middlewares
 app.use(cors());
-app.use(bodyParser.json({ limit: "50mb" }));
+app.use(express.json({ limit: "50mb" }));
 const upload = multer({ storage: multer.memoryStorage() });
 
-/* ====== CONFIG ====== */
-const PORT = process.env.PORT || 3000;
-const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// === Config ===
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || "";
 const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
 
-/* ====== HEALTH CHECK ====== */
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    engine: "NovaAI Backend v2",
-    time: new Date().toISOString(),
-  });
-});
+// === Salud (dos rutas por comodidad) ===
+app.get("/", (_, res) => res.json({ ok: true, service: "NovaAI Backend v2" }));
+app.get("/health", (_, res) => res.json({ ok: true, time: new Date().toISOString() }));
+app.get("/api/health", (_, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
-/* ====== TEST REPLICATE ====== */
-app.get("/api/replicate-test", async (req, res) => {
+// === Test del token/modelo en Replicate ===
+app.get("/api/replicate-test", async (_, res) => {
   try {
+    if (!REPLICATE_API_TOKEN) {
+      return res.status(401).json({ ok: false, msg: "REPLICATE_API_TOKEN not set" });
+    }
+    // Leer info del modelo oficial (no necesita version)
     const r = await fetch("https://api.replicate.com/v1/models/bytedance/seededit-3.0", {
       headers: {
         Authorization: `Token ${REPLICATE_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
+        "Content-Type": "application/json"
+      }
     });
     const data = await r.json();
-    res.json({ ok: true, data });
+    if (!r.ok) return res.status(r.status).json({ ok: false, msg: "Replicate error", data });
+    res.json({ ok: true, model: "bytedance/seededit-3.0", data });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ ok: false, msg: err?.message || "unknown error" });
   }
 });
 
-/* ====== GENERATE ENDPOINT ====== */
+// === Generate ===
+// Acepta:
+// - JSON: { ref, prompt, negative, font, strength }
+// - multipart: file (imagen) + campos (ref/prompt/etc.)
 app.post("/api/generate", upload.single("file"), async (req, res) => {
   try {
-    const { ref, prompt, negative, font, strength = 0.35 } = req.body;
-    const hasFile = !!req.file;
-
-    // image input
-    let inputImage = ref || null;
-    if (hasFile) {
-      const buffer = req.file.buffer.toString("base64");
-      inputImage = `data:${req.file.mimetype};base64,${buffer}`;
+    if (!REPLICATE_API_TOKEN) {
+      return res.status(401).json({ ok: false, msg: "Missing REPLICATE_API_TOKEN" });
     }
 
-    // Prefer Replicate (SeedEdit or Flux)
+    const { ref, prompt, negative, strength } = req.body;
+    const useStrength = typeof strength === "number" ? strength : Number(strength) || 0.35;
+
+    // Imagen de entrada: archivo subido o URL/dataURL en "ref"
+    let inputImage = ref || null;
+    if (req.file?.buffer && req.file?.mimetype) {
+      const b64 = req.file.buffer.toString("base64");
+      inputImage = `data:${req.file.mimetype};base64,${b64}`;
+    }
+    if (!inputImage) {
+      return res.status(400).json({ ok: false, msg: "Missing input image (ref or file)" });
+    }
+
+    // 1) Intentar SeedEdit 3.0 (edición fiel)
     try {
-      const output = await replicate.run("bytedance/seededit-3.0", {
+      const out = await replicate.run("bytedance/seededit-3.0", {
         input: {
           image: inputImage,
-          prompt: prompt || "Faithful design recreation",
+          prompt: prompt || "Faithful figure/text replacement for acrylic lamp design",
           negative_prompt: negative || "",
-          strength: strength,
-          steps: 4,
-        },
+          guidance_scale: 5.5 // valor recomendado por BYTEDANCE
+        }
       });
-      return res.json({
-        used: "replicate/seededit-3.0",
-        image: Array.isArray(output) ? output[0] : output,
-        steps: 4,
-        strength,
-      });
-    } catch (repErr) {
-      console.error("Replicate failed:", repErr);
+      // SeedEdit devuelve un string con URL de imagen
+      const image = Array.isArray(out) ? out[0] : out;
+      return res.json({ ok: true, engine: "seededit-3.0", image });
+    } catch (e) {
+      // Si falla, lo registramos y seguimos al fallback
+      console.error("SeedEdit error:", e?.message || e);
     }
 
-    // fallback (Flux Schnell)
+    // 2) Fallback Flux Schnell (rápido y barato)
     try {
       const out2 = await replicate.run("black-forest-labs/flux-schnell", {
         input: {
-          image: inputImage,
-          prompt: prompt || "Faithful design recreation",
-          negative_prompt: negative || "",
-          strength,
-          steps: 4,
-        },
+          prompt: prompt || "Design for acrylic LED lamp, preserve layout",
+          guidance: 3
+        }
       });
-      return res.json({
-        used: "replicate/flux-schnell",
-        image: Array.isArray(out2) ? out2[0] : out2,
-        steps: 4,
-        strength,
-      });
-    } catch (err2) {
-      console.error("Flux fallback failed:", err2);
+      const image = Array.isArray(out2) ? out2[0] : out2;
+      return res.json({ ok: true, engine: "flux-schnell", image });
+    } catch (e2) {
+      console.error("Flux error:", e2?.message || e2);
     }
 
-    // fallback OpenAI (solo si está configurada)
-    if (OPENAI_API_KEY) {
-      const resp = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-image-1",
-          prompt,
-          size: "1024x1024",
-        }),
-      });
-      const data = await resp.json();
-      return res.json({
-        used: "openai/gpt-image-1",
-        image: data.data?.[0]?.b64_json
-          ? `data:image/png;base64,${data.data[0].b64_json}`
-          : null,
-      });
-    }
-
-    throw new Error("No valid engine available");
+    // Si ambos fallan:
+    return res.status(422).json({
+      ok: false,
+      msg: "All engines failed (SeedEdit and Flux). Check token, inputs or model availability."
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message || "Unknown error" });
+    console.error("Generate fatal:", err);
+    res.status(500).json({ ok: false, msg: err?.message || "Unknown error" });
   }
 });
 
-/* ====== RUN ====== */
+// === Start ===
 app.listen(PORT, () => {
-  console.log(`✅ NovaAI Backend running on port ${PORT}`);
+  console.log(`✅ NovaAI backend listening on :${PORT}`);
 });
