@@ -1,356 +1,546 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NeguNova · NovaAI</title>
-  <style>
-    :root{
-      --bg:#0f172a; --panel:#111827; --panel2:#0b1020;
-      --text:#e5e7eb; --muted:#94a3b8; --border:#1f2937;
-      --brand:#f59e0b; --ok:#22c55e; --warn:#fbbf24; --ink:#111;
-      --chip:#1f2937; --ring:#203154; --shadow:0 10px 30px rgba(0,0,0,.35);
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    header{background:linear-gradient(90deg,#ff7a18,#ffb347);color:var(--ink);padding:8px 12px;position:sticky;top:0;z-index:10}
-    nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    nav a{color:var(--ink);text-decoration:none;background:#fff2;padding:6px 10px;border-radius:10px;font-weight:700}
-    nav a[aria-current="page"]{background:#fff}
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>NeguNova · NovaAI</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+:root{
+  --bg:#0f172a; --panel:#111827; --panel2:#0b1020;
+  --text:#e5e7eb; --muted:#94a3b8; --border:#1f2937;
+  --brand:#f59e0b; --ok:#22c55e; --ink:#111;
+  --chip:#1f2937; --ring:#203154; --shadow:0 10px 30px rgba(0,0,0,.35);
+  --badge:#2b3957;
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+header{background:linear-gradient(90deg,#ff7a18,#ffb347);color:var(--ink);padding:8px 12px;position:sticky;top:0;z-index:10}
+nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+nav a{color:var(--ink);text-decoration:none;background:#fff2;padding:6px 10px;border-radius:10px;font-weight:700}
+nav a[aria-current="page"]{background:#fff}
 
-    .wrap{display:grid;grid-template-columns:320px 1fr;gap:10px;max-width:1200px;margin:0 auto;padding:10px;height:calc(100vh - 56px)}
-    @media (max-width:980px){.wrap{grid-template-columns:1fr;height:auto}}
-    .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:12px;display:grid;grid-template-rows:auto 1fr auto;min-height:0}
-    h2{margin:0 0 6px}
-    .sub{color:var(--muted);font-size:.85rem;margin-bottom:8px}
-    .stack{display:flex;flex-direction:column;gap:8px}
-    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    label{color:var(--muted);font-size:.82rem}
-    input[type="file"],select,textarea{width:100%;background:#0b1226;color:#e5e7eb;border:1px solid var(--ring);border-radius:.6rem;padding:.6rem .7rem}
-    textarea{min-height:84px;resize:vertical}
-    .btn{border:0;border-radius:.6rem;padding:.6rem .8rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem}
-    .btn.primary{background:var(--brand);color:var(--ink)}
-    .btn.gen{background:var(--ok);color:#052e16}
-    .btn.order{background:var(--warn);color:#111}
-    .btn.ghost{background:#0b1226;color:#e5e7eb;border:1px solid var(--ring)}
-    .btn.clear{background:#374151;color:#e5e7eb}
+.wrap{display:grid;grid-template-columns:320px 1fr;gap:10px;max-width:1200px;margin:0 auto;padding:10px;height:calc(100vh - 56px)}
+@media (max-width:980px){.wrap{grid-template-columns:1fr;height:auto}}
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:12px;display:grid;grid-template-rows:auto 1fr auto;min-height:0}
+h2{margin:0 0 6px}
+.sub{color:var(--muted);font-size:.85rem;margin-bottom:8px}
+.stack{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+label{color:var(--muted);font-size:.82rem}
+input[type="file"],select,textarea{width:100%;background:#0b1226;color:#e5e7eb;border:1px solid var(--ring);border-radius:.6rem;padding:.6rem .7rem}
+textarea{min-height:120px;resize:vertical;border-color:#d97706;box-shadow:inset 0 0 0 1px rgba(217,119,6,.25)}
+.btn{border:0;border-radius:.8rem;padding:.58rem .9rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem}
+.btn.primary{background:var(--brand);color:var(--ink)}
+.btn.ghost{background:#0b1226;color:#e5e7eb;border:1px solid var(--ring)}
 
-    .chip-wrap{min-height:44px}
-    .chip-empty{color:#94a3b8;font-size:.82rem}
-    .chip{display:inline-flex;align-items:center;gap:8px;background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px 6px 6px;max-width:100%;overflow:hidden}
-    .chip .thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;border:1px solid #111;background:#000;flex:0 0 28px}
-    .chip .label{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:180px}
-    .chip .x{margin-left:6px;border:0;background:#374151;color:#e5e7eb;border-radius:999px;padding:4px 8px;cursor:pointer}
+.chip-wrap{min-height:44px}
+.chip-empty{color:#94a3b8;font-size:.82rem}
+.chip{display:inline-flex;align-items:center;gap:8px;background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px 6px 6px;max-width:100%;overflow:hidden}
+.chip .thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;border:1px solid #111;background:#000;flex:0 0 28px}
+.chip .label{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:180px}
+.chip .x{margin-left:6px;border:0;background:#374151;color:#e5e7eb;border-radius:999px;padding:4px 8px;cursor:pointer}
 
-    .result{height:min(56vh,620px);background:#0b0f1d;border:1px dashed #253055;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-    .result img{width:100%;height:100%;object-fit:contain;display:block}
-    .helper{color:#94a3b8;font-size:.9rem}
-    .msg{margin-top:8px;font-size:.86rem;color:#e5e7eb;white-space:pre-wrap;opacity:.9}
+/* Resultado */
+.result{height:min(56vh,620px);background:#0b0f1d;border:1px dashed #253055;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.result img{width:100%;height:100%;object-fit:contain;display:block}
+.helper{color:#94a3b8;font-size:.9rem}
+.msg{margin-top:8px;font-size:.86rem;color:#e5e7eb;white-space:pre-wrap;opacity:.9}
+.alert{background:#1f2937;border:1px solid #f43f5e;color:#fecaca;padding:8px 10px;border-radius:10px;margin-top:8px;white-space:pre-wrap}
 
-    .slide{position:fixed;top:0;right:0;height:100vh;width:min(430px,92vw);background:#0b1220;border-left:1px solid var(--ring);box-shadow:var(--shadow);transform:translateX(100%);transition:transform .25s ease;z-index:70;display:grid;grid-template-rows:auto 1fr}
-    .slide.open{transform:translateX(0)}
-    .slide header{padding:10px 12px;border-bottom:1px solid var(--ring);display:flex;justify-content:space-between;align-items:center}
-    .slide .body{padding:10px 12px;overflow:auto}
-    .hist{display:grid;gap:10px}
-    .card{background:#0f1426;border:1px solid var(--ring);border-radius:12px;padding:8px;display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:center}
-    .card img{width:112px;height:112px;object-fit:cover;border-radius:10px;border:1px solid #101828}
-    .tiny{font-size:11px;color:#9fb}
-  </style>
+/* Botonera centrada */
+.toolbar-wrap{display:grid;place-items:center;margin-top:12px}
+.toolbar{display:grid;grid-template-columns:auto 104px auto;gap:14px;align-items:center}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:0;height:52px;width:280px}
+.split button{border:1px solid #2d3b55;background:linear-gradient(180deg,#1b2435,#141b2b);color:#e7f0ff;font-weight:900;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);height:100%}
+.split .left{border-radius:999px 0 0 999px}
+.split .right{border-radius:0 999px 999px 0;border-left:none}
+
+/* NovaAI FAB */
+.fab{width:104px;height:104px;border-radius:999px;cursor:pointer;border:0;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.2);background:radial-gradient(140px 140px at 30% 30%,#fff 0%,#e9eef7 30%,#c7d0de 55%,#9ea7b6 70%,#7a8391 85%,#5b6473 100%)}
+.fab::before{content:"";position:absolute;inset:-6px;border-radius:inherit;box-shadow:0 0 0 4px rgba(255,0,0,0),0 0 40px rgba(255,0,0,0);transition:box-shadow .18s}
+.fab .inner{position:absolute;inset:12px;border-radius:inherit;background:radial-gradient(90px 90px at 50% 50%,#fff 0%,#f6f7fb 45%,#e9edf6 70%,#d2d8e4 100%);display:grid;place-items:center;font-weight:900;letter-spacing:.3px;color:#20242c;border:1px solid #c9d2e0;text-transform:uppercase;font-size:12px}
+.fab.busy::before{box-shadow:0 0 0 4px rgba(255,40,40,.9),0 0 40px rgba(255,30,30,.55)}
+.fab.busy .inner{animation:pulse-red 1.1s ease-in-out infinite}
+.fab.ok::before{box-shadow:0 0 0 4px rgba(46,204,113,.9),0 0 40px rgba(46,204,113,.55)}
+.fab.ok .inner{box-shadow:inset 0 0 0 2px rgba(46,204,113,.35)}
+@keyframes pulse-red{0%{box-shadow:0 0 0 0 rgba(255,60,60,.55)}70%{box-shadow:0 0 0 14px rgba(255,60,60,0)}100%{box-shadow:0 0 0 0 rgba(255,60,60,0)}}
+
+/* ORDER NOW */
+.cta-order{height:52px;padding:0 20px;border-radius:999px;border:1px solid #b45b00;background:linear-gradient(180deg,#ffd54d,#ff9f1c);color:#2b1900;font-weight:900;letter-spacing:.2px;cursor:pointer;box-shadow:0 10px 26px rgba(255,159,28,.35), inset 0 1px 0 rgba(255,255,255,.45);display:inline-flex;align-items:center;gap:10px;width:280px;justify-content:center}
+.cta-order .ic{width:18px;height:18px;display:inline-block;filter:drop-shadow(0 1px 0 rgba(255,255,255,.3))}
+.cta-order:hover{filter:brightness(1.06)} .cta-order:active{transform:translateY(1px)}
+.cta-order.pulse{animation:order-pulse 1.2s ease-out 1}
+@keyframes order-pulse{0%{box-shadow:0 0 0 0 rgba(255,159,28,.65),inset 0 1px 0 rgba(255,255,255,.45)}70%{box-shadow:0 0 0 14px rgba(255,159,28,0),inset 0 1px 0 rgba(255,255,255,.45)}100%{box-shadow:0 0 0 0 rgba(255,159,28,0),inset 0 1px 0 rgba(255,255,255,.45)}}
+
+/* Side history */
+.slide{position:fixed;top:0;right:0;height:100vh;width:min(430px,92vw);background:#0b1220;border-left:1px solid var(--ring);box-shadow:var(--shadow);transform:translateX(100%);transition:transform .25s;z-index:70;display:grid;grid-template-rows:auto 1fr}
+.slide.open{transform:translateX(0)}
+.slide header{padding:10px 12px;border-bottom:1px solid var(--ring);display:flex;justify-content:space-between;align-items:center}
+.slide .body{padding:10px 12px;overflow:auto}
+.hist{display:grid;gap:10px}
+.card{background:#0f1426;border:1px solid var(--ring);border-radius:12px;padding:8px;display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:center}
+.card img{width:112px;height:112px;object-fit:cover;border-radius:10px;border:1px solid #101828}
+.tiny{font-size:11px;color:#9fb}
+.badge{display:inline-block;background:var(--badge);border:1px solid #3a4a77;color:#d3e1ff;padding:2px 6px;border-radius:999px;font-size:11px;margin-left:6px}
+
+/* Colapsables */
+.section-toggle{display:flex;justify-content:space-between;align-items:center;background:#0b1226;border:1px solid var(--ring);border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:800}
+.section-body{border:1px solid var(--ring);border-top:none;border-radius:0 0 10px 10px;padding:10px;background:#0b1226;margin-top:-8px}
+.hidden{display:none}
+
+/* Vista previa de fuente bajo el selector */
+.font-preview-line{margin-top:6px;padding:6px 10px;border:1px dashed #2a3552;border-radius:10px;background:#0b1226}
+.font-preview-line .name{font-weight:900}
+.small{font-size:.82rem;color:#9fb}
+</style>
 </head>
 <body>
-  <header>
-    <nav>
-      <a href="home.html">Home</a>
-      <a href="products.html">Products</a>
-      <a href="orders.html">Orders</a>
-      <a href="contact.html">Contacts</a>
-      <a href="novaai.html" aria-current="page">NovaAI</a>
-    </nav>
-  </header>
+<header>
+  <nav>
+    <a href="home.html">Home</a>
+    <a href="products.html">Products</a>
+    <a href="orders.html">Orders</a>
+    <a href="contact.html">Contacts</a>
+    <a href="novaai.html" aria-current="page">NovaAI</a>
+  </nav>
+</header>
 
-  <div class="wrap">
-    <!-- Controles -->
-    <section class="panel" style="grid-template-rows:auto 1fr auto">
-      <div>
-        <h2>Generator</h2>
-        <div id="health" class="sub">Proxy: checking…</div>
+<div class="wrap">
+  <!-- Panel izquierdo -->
+  <section class="panel" style="grid-template-rows:auto 1fr auto">
+    <div>
+      <h2>Generator</h2>
+      <div id="health" class="sub">Proxy: checking…</div>
+
+      <div class="stack">
+        <div class="row">
+          <button id="openCatalog" class="btn primary" type="button">Open Catalog</button>
+          <button id="pasteUrl" class="btn ghost" type="button" title="Pegar URL de imagen">Paste URL</button>
+        </div>
 
         <div class="stack">
-          <div class="row">
-            <button id="openCatalog" class="btn primary" type="button">Open Catalog</button>
-            <button id="pasteUrl" class="btn ghost" type="button" title="Pegar URL de imagen">Paste URL</button>
-          </div>
+          <label>Selected product</label>
+          <div id="chip" class="chip-wrap"></div>
+          <div id="chipMeta" class="sub"></div>
+        </div>
 
-          <div class="stack">
-            <label>Selected product</label>
-            <div id="chip" class="chip-wrap"></div>
-            <div id="chipMeta" class="sub"></div>
-          </div>
+        <div class="stack">
+          <label>Upload image (optional)</label>
+          <input id="upload" type="file" accept="image/*"/>
+          <div class="sub">If you upload a file, it overrides the catalog reference for this generation.</div>
+        </div>
 
-          <div class="stack">
-            <label>Upload image (optional)</label>
-            <input id="upload" type="file" accept="image/*" />
-            <div class="sub">If you upload a file, it overrides the catalog reference for this generation.</div>
-          </div>
+        <!-- PROMPT -->
+        <div class="stack">
+          <label>Prompt (only figure/text changes)</label>
+          <textarea id="prompt" placeholder='Leave empty to faithfully imitate the chip. If you add text, escribe entre comillas: "Tu texto".'></textarea>
+          <div class="sub">Empty ⇒ imitate. With text ⇒ edit-figure-text (preserve style and composition).</div>
+        </div>
 
-          <div class="stack">
-            <label>Font</label>
-            <select id="font">
-              <option>DM Sans</option><option>Montserrat</option><option>Poppins</option><option>Inter</option>
-              <option>Raleway</option><option>Oswald</option><option>Nunito</option><option>Lato</option>
-            </select>
-          </div>
-
-          <div class="stack">
-            <label>Prompt (only figure/text changes)</label>
-            <textarea id="prompt" placeholder="Leave empty to faithfully imitate the chip."></textarea>
-            <div class="sub">Empty ⇒ imitate. With text ⇒ edit-figure-text (preserve style and composition).</div>
-          </div>
-
-          <div class="row">
-            <label style="display:inline-flex;align-items:center;gap:6px;margin-right:auto">
-              <input id="lockShape" type="checkbox" checked> Fidelity++ (lock shape)
+        <!-- FONTS (colapsable) -->
+        <div id="fontsHeader" class="section-toggle">Fonts <span id="fontsCaret">▸</span></div>
+        <div id="fontsBody" class="section-body hidden">
+          <div class="row" style="align-items:center">
+            <select id="font"></select>
+            <label class="small" style="display:inline-flex;gap:8px;align-items:center">
+              <input id="assistFont" type="checkbox" checked>
+              Font Assist (bake text when prompt has "texto")
             </label>
-            <button id="btnGen" class="btn gen" type="button">Generate</button>
-            <button id="btnOrder" class="btn order" type="button" title="Open history panel">Order</button>
-            <button id="btnClear" class="btn clear" type="button">Clear</button>
+          </div>
+          <div id="fontPreview" class="font-preview-line">
+            <span class="name" id="fontName">DM Sans</span> — Aa Sample / 1234
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Resultado -->
-    <section class="panel">
-      <h2>Result (customer)</h2>
-      <div id="result" class="result"><div class="helper">No image yet.</div></div>
-      <div id="msg" class="msg"></div>
-    </section>
-  </div>
-
-  <!-- Panel Historial -->
-  <div id="slide" class="slide" aria-hidden="true">
-    <header>
-      <strong>Image history (24h)</strong>
-      <div class="row">
-        <button id="purge" class="btn ghost" type="button">Clear</button>
-        <button id="closeSlide" class="btn ghost" type="button">Close</button>
-      </div>
-    </header>
-    <div class="body"><div id="hist" class="hist"></div></div>
-  </div>
-
-  <!-- Modal Enlarge -->
-  <dialog id="dlg" style="border:none;border-radius:14px;padding:0;background:#0b1220;color:#e5e7eb;max-width:92vw">
-    <div style="position:relative">
-      <button id="dlgClose" style="position:absolute;top:6px;right:6px;background:#0b1226;border:1px solid var(--ring);color:#e5e7eb;border-radius:10px;padding:6px 10px;cursor:pointer">✕</button>
-      <img id="dlgImg" alt="preview" style="max-width:100vw;max-height:80vh;display:block;border-radius:14px" />
-    </div>
-  </dialog>
-
-  <script>
-  // ===== Config =====
-  const PROXY = '/proxy.php';
-  const PROXY_HEALTH = PROXY + '?p=health';
-  const PROXY_GENERATE = PROXY + '?p=api/generate';
-  const HKEY='NN.novaai.hist24', DAY=24*60*60*1000, HMAX=60;
-  const $=(s,root=document)=>root.querySelector(s);
-
-  // ===== Utils =====
-  function fileToDataURL(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(file);});}
-  async function urlToDataURL(url){try{const r=await fetch(url,{cache:'no-store'});const ct=r.headers.get('content-type')||'';if(!r.ok||!ct.startsWith('image/'))throw 0;const b=await r.blob();return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(b);});}catch{return null;}}
-  async function fetchJSON(url, init){try{const r=await fetch(url,init);const t=await r.text();let j=null;try{j=JSON.parse(t);}catch{};return{ok:r.ok,status:r.status,json:j,text:t};}catch(e){return{ok:false,status:0,json:null,text:String(e)}}}
-  function readHist(){try{return JSON.parse(localStorage.getItem(HKEY))||[]}catch{return []}}
-  function saveHist(a){localStorage.setItem(HKEY, JSON.stringify(a));}
-  function purge24(a){const now=Date.now();return(a||[]).filter(x=>now-(x.ts||0)<=DAY);}
-  function addHist(url){if(!url)return;let a=purge24(readHist());a.unshift({id:crypto.randomUUID(),url,ts:Date.now()});if(a.length>HMAX)a=a.slice(0,HMAX);saveHist(a);renderHist();}
-  function shorten(u){if(!u)return'';try{const x=new URL(u,location.href);return(x.origin.replace(/^https?:\/\//,'')+x.pathname).slice(0,60);}catch{return(u||'').slice(0,60);}}
-  async function compressDataURL(dataURL,maxW=1600,maxH=1600,quality=0.9){try{if(!/^data:image\//i.test(dataURL))return dataURL;const img=new Image();img.src=dataURL;await img.decode();let w=img.naturalWidth,h=img.naturalHeight,r=Math.min(maxW/w,maxH/h,1);const c=document.createElement('canvas');c.width=Math.round(w*r);c.height=Math.round(h*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);const isPng=dataURL.startsWith('data:image/png');const out=c.toDataURL(isPng?'image/png':'image/jpeg',quality);return out.length<dataURL.length?out:dataURL;}catch{return dataURL;}}
-
-  // Historial seguro (evita romper por dataURL gigante)
-  function safeAddHist(url){
-    try{
-      if (/^data:image\//i.test(url) && url.length > 2_000_000) {
-        (async()=>{ try{ const tiny=await compressDataURL(url,600,600,0.65); addHist(tiny); }catch{} })();
-        return;
-      }
-      addHist(url);
-    }catch{}
-  }
-
-  // === Saneo de URL de referencia ===
-  function normalizeRefUrl(u){
-    if (!u || typeof u !== 'string') return '';
-    if (u === 'null' || u === 'undefined') return '';
-    if (u.startsWith('blob:')) return '';               // no usable fuera de su página
-    if (/^https?:\/\//i.test(u)) return u;
-    if (/^data:image\//i.test(u)) return u;
-    return '';
-  }
-
-  // ===== Incoming (soporta ref_data base64 desde Products) =====
-  const qs = new URLSearchParams(location.search);
-  let incoming=null; try{ incoming = JSON.parse(sessionStorage.getItem('novaai_incoming')||'null'); }catch{}
-  if(!incoming){
-    const qRef = qs.get('ref') || qs.get('img') || '';
-    incoming = { id:qs.get('id')||'', name:qs.get('name')||'', ref:qRef, ref_data:'' };
-  }
-  incoming.ref = normalizeRefUrl(incoming.ref);
-  if (incoming.ref_data && !/^data:image\//i.test(incoming.ref_data)) incoming.ref_data = '';
-
-  // ===== UI Refs =====
-  const chip=$('#chip'), chipMeta=$('#chipMeta'), promptBox=$('#prompt'), upload=$('#upload'), fontSel=$('#font');
-  const result=$('#result'), msg=$('#msg'), health=$('#health');
-  const btnGen=$('#btnGen'), openCatalog=$('#openCatalog'), pasteUrl=$('#pasteUrl'), btnClear=$('#btnClear');
-  const btnOrder=$('#btnOrder'), slide=$('#slide'), hist=$('#hist'), purgeBtn=$('#purge'), closeSlide=$('#closeSlide');
-  const dlg=document.getElementById('dlg'), dlgImg=document.getElementById('dlgImg'), dlgClose=document.getElementById('dlgClose');
-  const lockShape=document.getElementById('lockShape');
-
-  // ===== Chip render =====
-  async function renderChip(){
-    chip.innerHTML='';
-    const preview = incoming.ref_data || incoming.ref || '';
-    if(!preview){
-      const em=document.createElement('div'); em.className='chip-empty';
-      em.textContent='No product selected (use Open Catalog or Paste URL)';
-      chip.appendChild(em); if(chipMeta) chipMeta.textContent=''; return;
-    }
-    const pill=document.createElement('span'); pill.className='chip';
-    const im=new Image(); im.src=preview; im.className='thumb'; im.alt='chip';
-    const label=document.createElement('span'); label.className='label'; label.textContent=incoming.name||incoming.id||'Selected';
-    const x=document.createElement('button'); x.className='x'; x.textContent='Clear'; x.onclick=()=>{ incoming={}; renderChip(); };
-    pill.append(im,label,x); chip.append(pill);
-    if(chipMeta) chipMeta.textContent = incoming.ref ? shorten(incoming.ref) : '(base64)';
-  }
-
-  // ===== Historial =====
-  function renderHist(){
-    const a=purge24(readHist()); saveHist(a);
-    hist.innerHTML='';
-    a.forEach(it=>{
-      const row=document.createElement('div'); row.className='card';
-      row.innerHTML = `
-        <img src="${it.url}" alt="hist">
-        <div>
-          <div class="tiny">${new Date(it.ts).toLocaleString()}</div>
-          <div class="row" style="margin-top:6px">
-            <button class="btn ghost" data-act="enlarge" data-id="${it.id}">Enlarge</button>
-            <button class="btn order" data-act="order" data-id="${it.id}">Order</button>
+        <!-- TEMPLATES (colapsable) -->
+        <div id="tmplHeader" class="section-toggle">Templates <span id="tmplCaret">▸</span></div>
+        <div id="tmplBody" class="section-body hidden">
+          <div class="row">
+            <select id="promptPreset" title="Quick templates">
+              <option value="">– prompt templates –</option>
+              <option value='Change ONLY the text to: "_____"'>Change text → "_____"</option>
+              <option value="Add a small figure: ____ (do not change background)">Add figure (keep background)</option>
+              <option value="Remove the figure ____ (keep layout and background)">Remove figure</option>
+              <option value="Add watermark at the bottom-right: '_____'">Add watermark</option>
+            </select>
+            <button id="btnPresetApply" class="btn ghost" type="button">Insert</button>
           </div>
-        </div>`;
-      hist.appendChild(row);
-    });
+        </div>
+
+        <div class="row" style="align-items:center">
+          <label style="display:inline-flex;align-items:center;gap:6px;margin-right:auto">
+            <input id="lockShape" type="checkbox" checked> Fidelity++ (lock shape)
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:6px">
+            <input id="autoOpenHist" type="checkbox"> Open history after generate
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Panel resultado -->
+  <section class="panel">
+    <h2>Result (customer)</h2>
+    <div id="result" class="result"><div class="helper">No image yet.</div></div>
+
+    <!-- Botonera centrada -->
+    <div class="toolbar-wrap">
+      <div class="toolbar">
+        <div class="split">
+          <button class="left" id="btnClear" type="button" title="Clear">Clear</button>
+          <button class="right" id="btnHist" type="button" title="Open history">History</button>
+        </div>
+
+        <button class="fab" id="fabGen" type="button" title="NovaAI">
+          <div class="inner">NovaAI</div>
+        </button>
+
+        <button class="cta-order" id="fabOrder" type="button" title="Place your order">
+          <span class="ic">🛒</span><span>Order&nbsp;Now</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+  </section>
+</div>
+
+<!-- Panel Historial -->
+<div id="slide" class="slide" aria-hidden="true">
+  <header>
+    <strong>Image history (24h)</strong>
+    <div class="row">
+      <button id="purge" class="btn ghost" type="button">Clear</button>
+      <button id="closeSlide" class="btn ghost" type="button">Close</button>
+    </div>
+  </header>
+  <div class="body"><div id="hist" class="hist"></div></div>
+</div>
+
+<!-- Modal Enlarge -->
+<dialog id="dlg" style="border:none;border-radius:14px;padding:0;background:#0b1220;color:#e5e7eb;max-width:92vw">
+  <div style="position:relative">
+    <button id="dlgClose" style="position:absolute;top:6px;right:6px;background:#0b1226;border:1px solid var(--ring);color:#e5e7eb;border-radius:10px;padding:6px 10px;cursor:pointer">✕</button>
+    <img id="dlgImg" alt="preview" style="max-width:100vw;max-height:80vh;display:block;border-radius:14px"/>
+  </div>
+</dialog>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+/* ====== Helpers básicos ====== */
+const PROXY='/proxy.php';
+const PROXY_HEALTH=PROXY+'?p=health';
+const PROXY_GENERATE=PROXY+'?p=api/generate';
+const HKEY='NN.novaai.hist24', DAY=24*60*60*1000, HMAX=60;
+const $=(s,root=document)=>root.querySelector(s);
+function fileToDataURL(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(file);});}
+async function urlToDataURL(url){try{const r=await fetch(url,{cache:'no-store'});const ct=r.headers.get('content-type')||'';if(!r.ok||!ct.startsWith('image/'))throw 0;const b=await r.blob();return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(b);});}catch{return null;}}
+async function fetchJSON(url,init){try{const r=await fetch(url,init);const t=await r.text();let j=null;try{j=JSON.parse(t);}catch{};return{ok:r.ok,status:r.status,json:j,text:t};}catch(e){return{ok:false,status:0,json:null,text:String(e)}}}
+function shorten(u){if(!u)return'';try{const x=new URL(u,location.href);return(x.origin.replace(/^https?:\/\//,'')+x.pathname).slice(0,60);}catch{return(u||'').slice(0,60);}}
+async function compressDataURL(dataURL,maxW=1600,maxH=1600,quality=0.9){try{if(!/^data:image\//i.test(dataURL))return dataURL;const img=new Image();img.src=dataURL;await img.decode();let w=img.naturalWidth,h=img.naturalHeight,r=Math.min(maxW/w,maxH/h,1);const c=document.createElement('canvas');c.width=Math.round(w*r);c.height=Math.round(h*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);const isPng=dataURL.startsWith('data:image/png');const out=c.toDataURL(isPng?'image/png':'image/jpeg',quality);return out.length<dataURL.length?out:dataURL;}catch{return dataURL;}}
+
+/* ===== Moderación ===== */
+const MOD={hard:['desnudez','desnuda','desnudo','senos','pezon','pezón','genital','pene','vagina','sexo','porn','pornografia','nsfw','xxx','hentai','erotico','sexual','incest','nudity','nude','boobs','penis','vagina','gore','suicid','tortura','nazi','swastika','kkk','terrorist','isis','satan','satánico','lucifer','baphomet','pentagrama','black mass']};
+function normalize(t){const map={'0':'o','1':'i','!':'i','3':'e','4':'a','@':'a','$':'s','5':'s','7':'t'};let s=(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[0-9!@$]/g,ch=>map[ch]||ch);return s.replace(/[_\-.*+]/g,' ').replace(/\s+/g,' ').trim();}
+function containsBanned(text){const n=normalize(text);for(const kw of MOD.hard){const k=normalize(kw);if(!k)continue;const re=new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`,'i');if(re.test(n))return{match:kw};}return null;}
+async function moderateImageDataURL(dataURL){try{if(!/^data:image\//i.test(dataURL))return{blocked:false};const img=new Image();img.src=dataURL;await img.decode();const w=img.naturalWidth,h=img.naturalHeight;const c=document.createElement('canvas');const ctx=c.getContext('2d',{willReadFrequently:true});const maxS=160,r=Math.min(maxS/w,maxS/h,1);c.width=Math.max(1,Math.round(w*r));c.height=Math.max(1,Math.round(h*r));ctx.drawImage(img,0,0,c.width,c.height);const {data}=ctx.getImageData(0,0,c.width,c.height);let skin=0,total=c.width*c.height;for(let i=0;i<data.length;i+=4){const R=data[i],G=data[i+1],B=data[i+2];const Y=0.299*R+0.587*G+0.114*B;const Cb=-0.168736*R-0.331264*G+0.5*B+128;const Cr=0.5*R-0.418688*G-0.081312*B+128;if(Y>80&&Cb>77&&Cb<127&&Cr>133&&Cr<173)skin++;}if(skin/total>0.42)return{blocked:true,reason:'Imagen potencialmente inapropiada.'};return{blocked:false};}catch{return{blocked:false};}}
+async function moderateImageFile(file){const name=(file?.name||'').toLowerCase();if(containsBanned(name))return{blocked:true,reason:'Archivo con nombre inapropiado.'};if(!/^image\//.test(file?.type||''))return{blocked:true,reason:'Solo se permiten imágenes.'};try{const dataURL=await fileToDataURL(file);return await moderateImageDataURL(dataURL);}catch{return{blocked:false};}}
+function showReject(msgEl,text){if(!msgEl)return;msgEl.innerHTML=`<div class="alert">🚫 ${text}</div>`;}
+async function enforcePromptPolicy(promptText,msgEl){const hit=containsBanned(promptText||'');if(hit){showReject(msgEl,`Tu prompt contiene términos no permitidos (p.ej. “${hit.match}”).`);return{blocked:true};}return{blocked:false};}
+async function enforceRefPolicyIfPossible(ref){try{if(/^data:image\//i.test(ref||'')){const res=await moderateImageDataURL(ref);if(res.blocked){showReject(msg,'Imagen no permitida.');return{blocked:true};}}return{blocked:false};}catch{return{blocked:false};}}
+
+/* ===== Incoming de products ===== */
+const qs=new URLSearchParams(location.search);
+let incoming=null;try{incoming=JSON.parse(sessionStorage.getItem('novaai_incoming')||'null');}catch{}
+if(!incoming){const qRef=qs.get('ref')||qs.get('img')||'';incoming={id:qs.get('id')||'',name:qs.get('name')||'',ref:qRef,ref_data:''};}
+function normalizeRefUrl(u){ if(!u||typeof u!=='string')return''; if(u==='null'||u==='undefined')return''; if(u.startsWith('blob:'))return''; if(/^https?:\/\//i.test(u))return u; if(/^data:image\//i.test(u))return u; return''; }
+incoming.ref=normalizeRefUrl(incoming.ref);
+if(incoming.ref_data && !/^data:image\//i.test(incoming.ref_data)) incoming.ref_data='';
+
+/* ===== UI refs ===== */
+const chip=$("#chip"), chipMeta=$("#chipMeta"), promptBox=$("#prompt"), upload=$("#upload");
+const fontSel=$("#font"), fontNameEl=$("#fontName");
+const result=$("#result"), msg=$("#msg"), health=$("#health");
+const openCatalog=$("#openCatalog"), pasteUrl=$("#pasteUrl");
+const slide=$("#slide"), hist=$("#hist"), purgeBtn=$("#purge"), closeSlide=$("#closeSlide");
+const dlg=$("#dlg"), dlgImg=$("#dlgImg"), dlgClose=$("#dlgClose");
+const lockShape=$("#lockShape"), autoOpenHist=$("#autoOpenHist"), assistFont=$("#assistFont");
+const presetSel=$("#promptPreset"), presetApply=$("#btnPresetApply");
+const fontsHeader=$("#fontsHeader"), fontsBody=$("#fontsBody"), fontsCaret=$("#fontsCaret");
+const tmplHeader=$("#tmplHeader"), tmplBody=$("#tmplBody"), tmplCaret=$("#tmplCaret");
+const fabGen=$("#fabGen"), btnClear=$("#btnClear"), btnHist=$("#btnHist"), fabOrder=$("#fabOrder");
+
+/* ===== Fuentes ===== */
+const FONT_LIST=['DM Sans','Montserrat','Poppins','Inter','Raleway','Oswald','Nunito','Lato','Roboto','Roboto Condensed','Open Sans','Source Sans Pro','Mukta','Archivo','Bebas Neue','Titillium Web','Exo 2','Barlow','Cabin','Fira Sans','IBM Plex Sans','Heebo','Manrope','Urbanist','Quicksand','Prompt','Kanit','Mulish','Rubik','Work Sans','PT Sans','Hind','Noto Sans','Josefin Sans','League Spartan','Jost','Playfair Display','Merriweather','Crimson Pro','Libre Baskerville','Cormorant Garamond','DM Serif Display','Orbitron','Russo One'];
+fontSel.innerHTML = FONT_LIST.map((f,i)=>`<option ${i===0?'selected':''}>${f}</option>`).join('');
+const loadedFonts=new Set();
+function gfontURL(name){const fam=name.trim().replace(/\s+/g,'+');return `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fam)}:wght@400;700&display=swap`;}
+function addFontLink(name){ if(loadedFonts.has(name)) return; const link=document.createElement('link'); link.rel='stylesheet'; link.href=gfontURL(name); document.head.appendChild(link); loadedFonts.add(name); }
+async function applyFontPreview(name){ try{ addFontLink(name); fontNameEl.textContent=name; fontNameEl.style.fontFamily=`"${name}", system-ui, -apple-system, Segoe UI, Roboto, Arial`; if(document.fonts?.load) await document.fonts.load(`700 24px "${name}"`);}catch{} }
+applyFontPreview(fontSel.value);
+
+/* ===== Collapsables ===== */
+function expand(el, caret){ el.classList.remove('hidden'); caret.textContent='▾'; }
+function collapse(el, caret){ el.classList.add('hidden'); caret.textContent='▸'; }
+function toggle(el, caret){ el.classList.contains('hidden')?expand(el,caret):collapse(el,caret); }
+fontsHeader?.addEventListener('click',()=>toggle(fontsBody,fontsCaret));
+tmplHeader?.addEventListener('click',()=>toggle(tmplBody,tmplCaret));
+
+fontSel?.addEventListener('change',()=>{ applyFontPreview(fontSel.value); collapse(fontsBody,fontsCaret); });
+
+presetSel?.addEventListener('change',()=>{
+  const v=presetSel.value||''; if(!v) return;
+  promptBox.value = promptBox.value ? (promptBox.value.trim()+'\n'+v) : v;
+  presetSel.selectedIndex=0; collapse(tmplBody,tmplCaret);
+});
+presetApply?.addEventListener('click',()=>{ presetSel.dispatchEvent(new Event('change')); });
+
+/* ===== Historial ===== */
+function readHist(){ try{return JSON.parse(localStorage.getItem(HKEY))||[]}catch{return []} }
+function saveHist(a){ localStorage.setItem(HKEY, JSON.stringify(a)); }
+function purge24(a){ const now=Date.now(); return (a||[]).filter(x=>now-(x.ts||0)<=DAY); }
+function addHistRec({url,kind}){ if(!url) return; let a=purge24(readHist()); a.unshift({id:crypto.randomUUID(),url,ts:Date.now(),kind:kind||''}); if(a.length>HMAX)a=a.slice(0,HMAX); saveHist(a); }
+async function compressSmall(url){try{ if(/^data:image\//i.test(url)&&url.length>2_000_000) return await compressDataURL(url,600,600,0.65); return url;}catch{return url}}
+async function safeAddHist(url,kind){ addHistRec({url:await compressSmall(url),kind}); }
+function renderHist(){
+  const a=purge24(readHist()); saveHist(a);
+  hist.innerHTML='';
+  a.forEach(it=>{
+    const row=document.createElement('div'); row.className='card';
+    const kind=it.kind||'';
+    row.innerHTML=`
+      <img src="${it.url}" alt="hist">
+      <div>
+        <div class="tiny">${new Date(it.ts).toLocaleString()} ${kind?`<span class="badge">${kind}</span>`:''}</div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn ghost" data-act="enlarge" data-id="${it.id}">Enlarge</button>
+          <button class="btn" style="background:#ffb020;color:#111" data-act="order" data-id="${it.id}">Order Now</button>
+          <button class="btn ghost" data-act="copy" data-id="${it.id}">Copy URL</button>
+        </div>
+      </div>`;
+    hist.appendChild(row);
+  });
+}
+function openHistory(){ renderHist(); slide.classList.add('open'); slide.setAttribute('aria-hidden','false'); }
+function closeHistory(){ slide.classList.remove('open'); slide.setAttribute('aria-hidden','true'); }
+btnHist?.addEventListener('click',()=>{ slide.classList.contains('open') ? closeHistory() : openHistory(); });
+
+hist?.addEventListener('click',async(e)=>{
+  const b=e.target.closest('button[data-act]'); if(!b) return;
+  const a=readHist(); const rec=a.find(x=>x.id===b.dataset.id); if(!rec) return;
+  if(b.dataset.act==='enlarge'){ dlgImg.src=rec.url; dlg.showModal(); }
+  if(b.dataset.act==='order'){ gotoOrders(rec.url); }
+  if(b.dataset.act==='copy'){ try{ await navigator.clipboard.writeText(rec.url); msg.textContent='Copied to clipboard.'; }catch{} }
+});
+purgeBtn?.addEventListener('click',()=>{ localStorage.removeItem(HKEY); renderHist(); });
+closeSlide?.addEventListener('click',closeHistory);
+
+/* ===== Upload moderación ===== */
+upload?.addEventListener('change', async (e)=>{
+  const f=e.target.files?.[0]; if(!f) return;
+  const res=await moderateImageFile(f);
+  if(res.blocked){ e.target.value=''; showReject(msg, res.reason||'Imagen no permitida.'); return; }
+  incoming.ref_data=await fileToDataURL(f); incoming.ref=''; renderChip();
+});
+
+/* ===== Acciones básicas ===== */
+btnClear?.addEventListener('click', ()=>{
+  promptBox.value='';
+  if(upload) upload.value='';
+  result.innerHTML='<div class="helper">No image yet.</div>';
+  msg.textContent='Cleared.';
+  fabGen?.classList.remove('busy','ok');
+});
+
+openCatalog?.addEventListener('click',()=>location.href='products.html');
+pasteUrl?.addEventListener('click',async()=>{
+  const u=prompt('Paste image URL'); if(!u) return;
+  incoming.ref=normalizeRefUrl(u.trim()); incoming.ref_data=''; renderChip();
+});
+
+/* ===== Orders robusto ===== */
+async function resolveOrdersUrl(){
+  const candidates=['orders.html','orders.htm','./orders.html','./orders.htm','/orders.html','/orders.htm'];
+  for(const path of candidates){
+    try{ const u=new URL(path, location.href); const r=await fetch(u.toString(),{method:'HEAD',cache:'no-store'}); if(r.ok) return u.toString(); }catch{}
   }
-  hist.addEventListener('click',(e)=>{
-    const b=e.target.closest('button[data-act]'); if(!b) return;
-    const a=readHist(); const rec=a.find(x=>x.id===b.dataset.id); if(!rec) return;
-    if(b.dataset.act==='enlarge'){ dlgImg.src=rec.url; dlg.showModal(); }
-    if(b.dataset.act==='order'){ location.href='orders.html?img='+encodeURIComponent(rec.url); }
-  });
+  return new URL('orders.html', location.href).toString();
+}
+async function gotoOrders(imgUrl){
+  const base = await resolveOrdersUrl();
+  const u = new URL(base);
+  if(imgUrl) u.searchParams.set('img', imgUrl);
+  location.assign(u.toString());
+}
+fabOrder?.addEventListener('click', ()=>{
+  const last = readHist()[0];
+  const safeUrl = last?.url || document.querySelector('#result img')?.src || '';
+  if(safeUrl) gotoOrders(safeUrl); else openHistory();
+});
 
-  // ===== Botones =====
-  openCatalog.onclick = ()=> location.href='products.html';
-  pasteUrl.onclick = async ()=>{
-    const u = prompt('Paste image URL'); if(!u) return;
-    incoming.ref = normalizeRefUrl(u.trim()); incoming.ref_data = ''; renderChip();
-  };
-  btnClear.onclick = ()=>{
-    promptBox.value=''; if(upload) upload.value='';
-    result.innerHTML='<div class="helper">No image yet.</div>'; msg.textContent='Cleared.';
-  };
-  btnOrder.onclick = ()=>{ slide.classList.add('open'); slide.setAttribute('aria-hidden','false'); };
-  closeSlide.onclick = ()=>{ slide.classList.remove('open'); slide.setAttribute('aria-hidden','true'); };
-  purgeBtn.onclick = ()=>{ localStorage.removeItem(HKEY); renderHist(); };
-  upload.onchange = async (e)=>{
-    const f=e.target.files?.[0]; if(!f) return;
-    incoming.ref_data = await fileToDataURL(f); incoming.ref=''; renderChip();
-  };
-  dlgClose.onclick = ()=> dlg.close();
-  dlg.addEventListener('click', (ev)=>{
-    const r=dlg.getBoundingClientRect();
-    if(!(ev.clientX>r.left && ev.clientX<r.right && ev.clientY>r.top && ev.clientY<r.bottom)) dlg.close();
-  });
+/* ===== Chip ===== */
+async function renderChip(){
+  chip.innerHTML='';
+  const preview=incoming.ref_data||incoming.ref||'';
+  if(!preview){
+    const em=document.createElement('div'); em.className='chip-empty';
+    em.textContent='No product selected (use Open Catalog or Paste URL)';
+    chip.appendChild(em); chipMeta.textContent=''; return;
+  }
+  const pill=document.createElement('span'); pill.className='chip';
+  const im=new Image(); im.src=preview; im.className='thumb'; im.alt='chip';
+  const label=document.createElement('span'); label.className='label'; label.textContent=incoming.name||incoming.id||'Selected';
+  const x=document.createElement('button'); x.className='x'; x.type='button'; x.textContent='Clear';
+  x.addEventListener('click', ()=>{incoming={}; renderChip();});
+  pill.append(im,label,x); chip.append(pill);
+  chipMeta.textContent= incoming.ref ? shorten(incoming.ref) : '(base64)';
+}
 
-  // ===== Generate =====
-  btnGen.onclick = async ()=>{
+/* ===== Modal enlarge ===== */
+dlgClose?.addEventListener('click',()=>dlg.close());
+dlg?.addEventListener('click',(ev)=>{const r=dlg.getBoundingClientRect(); if(!(ev.clientX>r.left&&ev.clientX<r.right&&ev.clientY>r.top&&ev.clientY<r.bottom)) dlg.close();});
+
+/* ===== Texto / fuentes ===== */
+function extractQuotedText(s){ const m=(s||'').match(/"([^"]{1,120})"/); return m?m[1]:''; }
+async function bakeText(refDataURL, text, fontName){
+  try{
+    if(document.fonts?.load) await document.fonts.load(`700 24px "${fontName}"`);
+    const img=new Image(); img.src=refDataURL; await img.decode();
+    const W=img.naturalWidth, H=img.naturalHeight;
+    const c=document.createElement('canvas'); c.width=W; c.height=H;
+    const ctx=c.getContext('2d');
+    ctx.drawImage(img,0,0,W,H);
+    const pad=Math.max(12,Math.round(W*0.03));
+    const maxTextWidth=W - pad*2;
+    let fontSize=Math.max(28, Math.round(W*0.06));
+    ctx.font = `700 ${fontSize}px "${fontName}", system-ui`;
+    while(ctx.measureText(text).width>maxTextWidth && fontSize>16){
+      fontSize-=2; ctx.font = `700 ${fontSize}px "${fontName}", system-ui`;
+    }
+    const textWidth = ctx.measureText(text).width;
+    const x = Math.round((W - textWidth)/2);
+    const y = Math.round(H - pad);
+    ctx.save(); ctx.shadowColor='rgba(0,180,255,0.55)'; ctx.shadowBlur=Math.round(fontSize*0.35);
+    ctx.fillStyle='#fff'; ctx.fillText(text,x,y); ctx.restore();
+    ctx.strokeStyle='rgba(10,25,60,0.6)'; ctx.lineWidth=Math.max(1,Math.round(fontSize*0.06)); ctx.strokeText(text,x,y);
+    return c.toDataURL('image/png');
+  }catch(e){ console.warn('bakeText failed',e); return refDataURL; }
+}
+function buildFontHint(font){ return `Use FONT FAMILY exactly: "${font}". Do NOT substitute fonts. Keep letter shapes of "${font}".`; }
+
+/* ===== Generate ===== */
+async function doGenerate(){
+  try{
     result.innerHTML='<div class="helper">Generating...</div>'; msg.textContent='';
+    fabGen?.classList.add('busy'); fabGen?.classList.remove('ok');
 
-    // 1) Resolver referencia (prioriza ref_data para fidelidad como Upload)
-    let refValue='';
-    try{
-      if(incoming.ref_data){
-        refValue = await compressDataURL(incoming.ref_data);
-      }else if(upload.files?.[0]){
-        refValue = await fileToDataURL(upload.files[0]);
-        refValue = await compressDataURL(refValue);
-      }else if(incoming.ref){
-        if (/^data:image\//i.test(incoming.ref)) {
-          refValue = await compressDataURL(incoming.ref);
-        } else { // https
-          const as64 = await urlToDataURL(incoming.ref);
-          refValue = as64 ? await compressDataURL(as64) : incoming.ref;
-        }
+    const pol=await enforcePromptPolicy((promptBox.value||''), msg);
+    if(pol.blocked){ result.innerHTML='<div class="helper">Blocked by policy.</div>'; fabGen?.classList.remove('busy'); return; }
+
+    let refValue=''; try{
+      if(incoming.ref_data){ refValue = await compressDataURL(incoming.ref_data); }
+      else if(upload.files?.[0]){ refValue = await compressDataURL(await fileToDataURL(upload.files[0])); }
+      else if(incoming.ref){
+        if(/^data:image\//i.test(incoming.ref)) refValue = await compressDataURL(incoming.ref);
+        else { const as64=await urlToDataURL(incoming.ref); refValue = as64 ? await compressDataURL(as64) : incoming.ref; }
       }
     }catch{}
+    if(!refValue){ result.innerHTML='<div class="helper">Choose a product or upload a file.</div>'; msg.textContent='No ref'; fabGen?.classList.remove('busy'); return; }
 
-    if(!refValue){
-      result.innerHTML='<div class="helper">Choose a product or upload a file.</div>';
-      msg.textContent='No ref'; return;
-    }
+    const polRef=await enforceRefPolicyIfPossible(refValue);
+    if(polRef.blocked){ result.innerHTML='<div class="helper">Blocked by policy.</div>'; fabGen?.classList.remove('busy'); return; }
 
     const raw=(promptBox.value||'').trim();
     const faithful = raw.length===0;
+    const fontName=(fontSel.value||'DM Sans').trim();
+    const fontHint = buildFontHint(fontName);
 
-    // 2) IMITACIÓN EXACTA sin backend
-    if (faithful) {
-      result.innerHTML = `<img src="${refValue}" alt="result">`;
-      msg.textContent = '✅ Imitated (exact from reference)';
-      safeAddHist(refValue);
+    if(faithful){
+      result.innerHTML=`<img src="${refValue}" alt="result">`;
+      msg.textContent='✅ Imitated (exact from reference)';
+      await safeAddHist(refValue,'Imitated');
+      if(autoOpenHist?.checked) openHistory();
+      fabGen?.classList.remove('busy'); fabGen?.classList.add('ok'); setTimeout(()=>fabGen?.classList.remove('ok'),2000);
+      fabOrder?.classList.add('pulse'); setTimeout(()=>fabOrder?.classList.remove('pulse'),1200);
       return;
     }
 
-    // 3) Edición precisa (solo figura/texto; conservar forma/fondo)
-    const fidelity = !!(lockShape && lockShape.checked);
+    const quoted = extractQuotedText(raw);
+    let refForEdit = refValue;
+    if(assistFont?.checked && quoted){ refForEdit = await bakeText(refValue, quoted, fontName); }
+
+    const fidelity = lockShape?.checked;
     const editPrompt =
 `Modify ONLY what is explicitly requested.
 Keep the SAME background, composition, camera, palette, lighting and materials as the reference.
 Keep the SAME camera distance and object proportions; preserve silhouette and layout exactly.
-Write EXACTLY the provided text (case-sensitive, no synonyms, no extra words). Do NOT change fonts unless specified.
+${fontHint}
+If any text is already visible in the reference, KEEP that exact font and letter shapes.
+Write EXACTLY the provided text (no synonyms, no extra words). Case-sensitive.
 Changes: """${raw}"""`;
 
+    const negative = 'no layout change, no new objects, no background change, no color swap, no style change, no camera move, no crop, do not change font family unless explicitly requested';
     const baseParams = fidelity
       ? { image_guidance_scale: 1.35, strength: 0.04, keep_background: true, preserve_subject: true, preserve_layout: true, mode: 'edit-figure-text' }
       : { image_guidance_scale: 0.9,  strength: 0.25, keep_background: true, preserve_subject: true, mode: 'edit-figure-text' };
 
-    const negative = 'no layout change, no new objects, no background change, no color swap, no style change, no camera move, no crop, no font change unless specified';
+    const payload = { ref: refForEdit, prompt: editPrompt, negative, font: fontName, font_family: fontName, font_hint: fontHint, ...baseParams };
 
-    const payload = { ref: refValue, prompt: editPrompt, negative, ...baseParams };
+    const {ok,status,json,text} = await fetchJSON(PROXY_GENERATE,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if(!ok){ result.innerHTML='<div class="helper">Failed.</div>'; msg.textContent=`Error ${status}\n${text?.slice(0,500)||''}`; fabGen?.classList.remove('busy'); return; }
 
-    const {ok,status,json,text} = await fetchJSON(PROXY + '?p=api/generate', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-    });
-
-    if(!ok){
-      result.innerHTML='<div class="helper">Failed.</div>';
-      msg.textContent=`Error ${status}\n${text?.slice(0,500)||''}`;
-      return;
+    const url=json?.customer || json?.owner || json?.image || '';
+    if(url){
+      result.innerHTML=`<img src="${url}" alt="result">`;
+      msg.textContent='✅ Edited';
+      await safeAddHist(url,'Edited');
+      if(autoOpenHist?.checked) openHistory();
+      fabGen?.classList.remove('busy'); fabGen?.classList.add('ok'); setTimeout(()=>fabGen?.classList.remove('ok'),2000);
+      fabOrder?.classList.add('pulse'); setTimeout(()=>fabOrder?.classList.remove('pulse'),1200);
+    }else{
+      result.innerHTML='<div class="helper">No image in response.</div>';
+      msg.textContent='Empty response';
+      fabGen?.classList.remove('busy');
     }
+  }catch(err){
+    msg.textContent='⚠️ JS error: '+(err?.message||String(err));
+    fabGen?.classList.remove('busy');
+  }
+}
 
-    const url = json?.customer || json?.owner || json?.image || '';
-    if(url){ result.innerHTML=`<img src="${url}" alt="result">`; msg.textContent='✅ Edited'; safeAddHist(url); }
-    else { result.innerHTML='<div class="helper">No image in response.</div>'; msg.textContent='Empty response'; }
-  };
+/* Bind del GENERATE */
+fabGen?.addEventListener('click', doGenerate);
 
-  // ===== Primer render + Health =====
-  (async()=>{
-    renderChip();
-    renderHist();
-    const h=await fetchJSON(PROXY_HEALTH,{method:'GET'});
-    document.getElementById('health').textContent = h.ok ? 'Proxy: OK' : ('Proxy: error '+h.status);
-  })();
+/* ===== Init ===== */
+function renderChip(){
+  chip.innerHTML='';
+  const preview=incoming.ref_data||incoming.ref||'';
+  if(!preview){
+    const em=document.createElement('div'); em.className='chip-empty';
+    em.textContent='No product selected (use Open Catalog or Paste URL)';
+    chip.appendChild(em); chipMeta.textContent=''; return;
+  }
+  const pill=document.createElement('span'); pill.className='chip';
+  const im=new Image(); im.src=preview; im.className='thumb'; im.alt='chip';
+  const label=document.createElement('span'); label.className='label'; label.textContent=incoming.name||incoming.id||'Selected';
+  const x=document.createElement('button'); x.className='x'; x.type='button'; x.textContent='Clear';
+  x.addEventListener('click', ()=>{incoming={}; renderChip();});
+  pill.append(im,label,x); chip.append(pill);
+  chipMeta.textContent= incoming.ref ? shorten(incoming.ref) : '(base64)';
+}
 
-  // ===== Diagnóstico =====
-  window.addEventListener('error', (e)=>{ try{ document.getElementById('msg').textContent='⚠️ JS error: '+e.message; }catch{} });
-  </script>
+(async()=>{
+  renderChip();
+  const h=await fetchJSON(PROXY_HEALTH,{method:'GET'});
+  $('#health').textContent = h.ok ? 'Proxy: OK' : ('Proxy: error '+h.status);
+})();
+
+/* errores visibles */
+window.addEventListener('error',(e)=>{ try{ msg.textContent='⚠️ JS error: '+e.message; }catch{} });
+
+}); /* DOMContentLoaded */
+</script>
 </body>
 </html>
