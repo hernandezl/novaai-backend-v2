@@ -1,418 +1,356 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>NovaAI – NeguNova</title>
-<style>
-  :root{
-    --bg:#0f1216; --panel:#171b22; --muted:#9aa3b2; --text:#e9eef7;
-    --brand1:#ff7a00; --brand2:#ff3a2f; --ok:#2ecc71; --warn:#f39c12; --danger:#e74c3c;
-    --card:#1a1f27; --ring:#2b3546; --shadow:0 10px 30px rgba(0,0,0,.35);
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,Segoe UI,Inter,Roboto,Arial}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NeguNova · NovaAI</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --panel2:#0b1020;
+      --text:#e5e7eb; --muted:#94a3b8; --border:#1f2937;
+      --brand:#f59e0b; --ok:#22c55e; --warn:#fbbf24; --ink:#111;
+      --chip:#1f2937; --ring:#203154; --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    header{background:linear-gradient(90deg,#ff7a18,#ffb347);color:var(--ink);padding:8px 12px;position:sticky;top:0;z-index:10}
+    nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    nav a{color:var(--ink);text-decoration:none;background:#fff2;padding:6px 10px;border-radius:10px;font-weight:700}
+    nav a[aria-current="page"]{background:#fff}
 
-  /* Header */
-  .header{background:linear-gradient(90deg,var(--brand1),var(--brand2));padding:14px 22px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:70}
-  .brand{font-weight:800;letter-spacing:.2px;font-size:20px}
-  .nav{margin-left:auto;display:flex;gap:10px}
-  .nav a{color:#fff;text-decoration:none;padding:8px 14px;border-radius:10px;opacity:.9}
-  .nav a:hover{background:rgba(255,255,255,.15)}
-  .nav a.active{background:rgba(0,0,0,.2)}
+    .wrap{display:grid;grid-template-columns:320px 1fr;gap:10px;max-width:1200px;margin:0 auto;padding:10px;height:calc(100vh - 56px)}
+    @media (max-width:980px){.wrap{grid-template-columns:1fr;height:auto}}
+    .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:12px;display:grid;grid-template-rows:auto 1fr auto;min-height:0}
+    h2{margin:0 0 6px}
+    .sub{color:var(--muted);font-size:.85rem;margin-bottom:8px}
+    .stack{display:flex;flex-direction:column;gap:8px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    label{color:var(--muted);font-size:.82rem}
+    input[type="file"],select,textarea{width:100%;background:#0b1226;color:#e5e7eb;border:1px solid var(--ring);border-radius:.6rem;padding:.6rem .7rem}
+    textarea{min-height:84px;resize:vertical}
+    .btn{border:0;border-radius:.6rem;padding:.6rem .8rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem}
+    .btn.primary{background:var(--brand);color:var(--ink)}
+    .btn.gen{background:var(--ok);color:#052e16}
+    .btn.order{background:var(--warn);color:#111}
+    .btn.ghost{background:#0b1226;color:#e5e7eb;border:1px solid var(--ring)}
+    .btn.clear{background:#374151;color:#e5e7eb}
 
-  /* Layout */
-  .wrap{max-width:1200px;margin:22px auto;padding:0 16px;display:grid;grid-template-columns:370px 1fr;gap:18px}
-  @media (max-width:980px){.wrap{grid-template-columns:1fr}}
+    .chip-wrap{min-height:44px}
+    .chip-empty{color:#94a3b8;font-size:.82rem}
+    .chip{display:inline-flex;align-items:center;gap:8px;background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px 6px 6px;max-width:100%;overflow:hidden}
+    .chip .thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;border:1px solid #111;background:#000;flex:0 0 28px}
+    .chip .label{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:180px}
+    .chip .x{margin-left:6px;border:0;background:#374151;color:#e5e7eb;border-radius:999px;padding:4px 8px;cursor:pointer}
 
-  /* Left panel (controls) */
-  .panel{background:var(--panel);border:1px solid #232c3c;border-radius:18px;padding:16px;box-shadow:var(--shadow)}
-  .panel h3{margin:0 0 8px}
-  .helper{color:var(--muted);font-size:12px}
+    .result{height:min(56vh,620px);background:#0b0f1d;border:1px dashed #253055;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .result img{width:100%;height:100%;object-fit:contain;display:block}
+    .helper{color:#94a3b8;font-size:.9rem}
+    .msg{margin-top:8px;font-size:.86rem;color:#e5e7eb;white-space:pre-wrap;opacity:.9}
 
-  .row{display:grid;gap:10px;margin:10px 0}
-  .row.two{grid-template-columns:1fr 1fr}
-  .row input[type="text"], .row input[type="file"], .row select, .row textarea{
-    width:100%;background:#0f151e;border:1px solid #2c3a50;color:#e9eef7;border-radius:10px;padding:10px
-  }
-  textarea{min-height:90px}
-
-  .btn{border:none;border-radius:12px;padding:10px 14px;color:#fff;background:#263142;cursor:pointer;box-shadow:var(--shadow);transition:.2s transform,.2s opacity}
-  .btn:hover{transform:translateY(-1px);opacity:.95}
-  .btn.primary{background:linear-gradient(90deg,#ff7a00,#ff3a2f)}
-  .btn.ok{background:linear-gradient(90deg,#27ae60,#1abc9c)}
-  .btn.warn{background:linear-gradient(90deg,#f39c12,#f1c40f)}
-  .btn.light{background:#3b465a}
-  .btn.danger{background:#e74c3c}
-  .btn.block{width:100%}
-
-  /* Chip selected product */
-  .chip{display:flex;align-items:center;gap:10px;background:#111824;border:1px solid #2a3547;border-radius:12px;padding:8px 10px;margin-top:8px}
-  .chip img{width:38px;height:38px;object-fit:cover;border-radius:8px;border:1px solid #2a3547;background:#0b0e13}
-  .chip .meta{display:flex;flex-direction:column}
-  .chip small{color:#94a0b2}
-  .chip .clear{margin-left:auto}
-
-  /* Right: result canvas */
-  .canvas{background:#0b0f15;border:1px solid #232c3c;border-radius:18px;padding:14px;min-height:520px;display:flex;flex-direction:column}
-  .canvas h3{margin:0 0 8px}
-  .stage{flex:1;border:1px dashed #2a3547;border-radius:14px;background:#0d1118;display:grid;place-items:center;overflow:hidden}
-  .stage img{max-width:100%;max-height:100%;display:block}
-  .status{margin-top:10px;font-size:13px;color:#9aa3b2;white-space:nowrap;overflow:auto}
-
-  /* Slide-out: order history (right) */
-  .drawer{position:fixed;top:0;right:-420px;width:420px;max-width:92vw;height:100vh;background:#0f151e;border-left:1px solid #263142;box-shadow:-10px 0 30px rgba(0,0,0,.4);transition:right .28s ease;z-index:120;display:flex;flex-direction:column}
-  .drawer.on{right:0}
-  .drawer-head{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid #273449}
-  .drawer-head .title{font-weight:800}
-  .drawer-head .sp{flex:1}
-  .drawer-body{padding:12px;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .thumb{background:#0b0e13;border:1px solid #2c3a50;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
-  .thumb img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
-  .thumb .act{display:flex;gap:6px;padding:8px;border-top:1px solid #233046}
-  .thumb .act .btn{padding:7px 10px;border-radius:10px}
-  .drawer-foot{padding:10px;border-top:1px solid #273449;display:flex;gap:8px;justify-content:flex-end}
-
-  /* Modal enlarge */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;z-index:150}
-  .modal.on{display:grid}
-  .modal .box{max-width:92vw;max-height:92vh;background:#0f151e;border:1px solid #2a3547;border-radius:12px;padding:10px}
-  .modal .box img{max-width:86vw;max-height:86vh;display:block}
-
-  .badge{margin-left:8px;background:#111b28;border:1px solid #2a3547;padding:4px 8px;border-radius:10px;color:#bcd}
-</style>
+    .slide{position:fixed;top:0;right:0;height:100vh;width:min(430px,92vw);background:#0b1220;border-left:1px solid var(--ring);box-shadow:var(--shadow);transform:translateX(100%);transition:transform .25s ease;z-index:70;display:grid;grid-template-rows:auto 1fr}
+    .slide.open{transform:translateX(0)}
+    .slide header{padding:10px 12px;border-bottom:1px solid var(--ring);display:flex;justify-content:space-between;align-items:center}
+    .slide .body{padding:10px 12px;overflow:auto}
+    .hist{display:grid;gap:10px}
+    .card{background:#0f1426;border:1px solid var(--ring);border-radius:12px;padding:8px;display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:center}
+    .card img{width:112px;height:112px;object-fit:cover;border-radius:10px;border:1px solid #101828}
+    .tiny{font-size:11px;color:#9fb}
+  </style>
 </head>
 <body>
-<header class="header">
-  <div class="brand">NeguNova</div>
-  <nav class="nav">
-    <a href="home.html">Home</a>
-    <a href="products.html">Products</a>
-    <a href="orders.html">Orders</a>
-    <a href="novaai.html" class="active">NovaAI</a>
-  </nav>
-  <span id="proxyState" class="badge">Proxy: checking…</span>
-</header>
+  <header>
+    <nav>
+      <a href="home.html">Home</a>
+      <a href="products.html">Products</a>
+      <a href="orders.html">Orders</a>
+      <a href="contact.html">Contacts</a>
+      <a href="novaai.html" aria-current="page">NovaAI</a>
+    </nav>
+  </header>
 
-<div class="wrap">
-  <!-- LEFT: Controls -->
-  <section class="panel" aria-label="Generator">
-    <h3>Generator</h3>
-
-    <div class="row">
-      <button id="btnCatalog" class="btn primary block">Open Catalog</button>
-      <div id="chipBox"></div>
-    </div>
-
-    <div class="row two">
+  <div class="wrap">
+    <!-- Controles -->
+    <section class="panel" style="grid-template-rows:auto 1fr auto">
       <div>
-        <label class="helper">Upload image (optional)</label>
-        <input id="fileUp" type="file" accept="image/*" />
+        <h2>Generator</h2>
+        <div id="health" class="sub">Proxy: checking…</div>
+
+        <div class="stack">
+          <div class="row">
+            <button id="openCatalog" class="btn primary" type="button">Open Catalog</button>
+            <button id="pasteUrl" class="btn ghost" type="button" title="Pegar URL de imagen">Paste URL</button>
+          </div>
+
+          <div class="stack">
+            <label>Selected product</label>
+            <div id="chip" class="chip-wrap"></div>
+            <div id="chipMeta" class="sub"></div>
+          </div>
+
+          <div class="stack">
+            <label>Upload image (optional)</label>
+            <input id="upload" type="file" accept="image/*" />
+            <div class="sub">If you upload a file, it overrides the catalog reference for this generation.</div>
+          </div>
+
+          <div class="stack">
+            <label>Font</label>
+            <select id="font">
+              <option>DM Sans</option><option>Montserrat</option><option>Poppins</option><option>Inter</option>
+              <option>Raleway</option><option>Oswald</option><option>Nunito</option><option>Lato</option>
+            </select>
+          </div>
+
+          <div class="stack">
+            <label>Prompt (only figure/text changes)</label>
+            <textarea id="prompt" placeholder="Leave empty to faithfully imitate the chip."></textarea>
+            <div class="sub">Empty ⇒ imitate. With text ⇒ edit-figure-text (preserve style and composition).</div>
+          </div>
+
+          <div class="row">
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-right:auto">
+              <input id="lockShape" type="checkbox" checked> Fidelity++ (lock shape)
+            </label>
+            <button id="btnGen" class="btn gen" type="button">Generate</button>
+            <button id="btnOrder" class="btn order" type="button" title="Open history panel">Order</button>
+            <button id="btnClear" class="btn clear" type="button">Clear</button>
+          </div>
+        </div>
       </div>
-      <div>
-        <label class="helper">Font</label>
-        <select id="fontSel">
-          <option>DM Sans</option>
-          <option>Montserrat</option>
-          <option>Poppins</option>
-          <option>Inter</option>
-        </select>
+    </section>
+
+    <!-- Resultado -->
+    <section class="panel">
+      <h2>Result (customer)</h2>
+      <div id="result" class="result"><div class="helper">No image yet.</div></div>
+      <div id="msg" class="msg"></div>
+    </section>
+  </div>
+
+  <!-- Panel Historial -->
+  <div id="slide" class="slide" aria-hidden="true">
+    <header>
+      <strong>Image history (24h)</strong>
+      <div class="row">
+        <button id="purge" class="btn ghost" type="button">Clear</button>
+        <button id="closeSlide" class="btn ghost" type="button">Close</button>
       </div>
-    </div>
-
-    <div class="row">
-      <label class="helper">Prompt (only change figure and/or text)</label>
-      <textarea id="promptBox" placeholder="E.g.: Replace the figure with a sports car; text 'ANA Y LUIS 2025'"></textarea>
-      <div class="helper">Predefined negatives restrict changes exclusively to figures and texts; style/composition remain intact.</div>
-    </div>
-
-    <div class="row two">
-      <button id="btnGenerate" class="btn ok">Generate</button>
-      <button id="btnDrawer" class="btn warn">Order History</button>
-    </div>
-
-    <div class="row">
-      <button id="btnClear" class="btn light block">Clear</button>
-    </div>
-  </section>
-
-  <!-- RIGHT: Canvas -->
-  <section class="canvas" aria-label="Result (customer)">
-    <h3>Result (customer)</h3>
-    <div id="stage" class="stage"><div class="helper">No image yet.</div></div>
-    <div id="status" class="status"></div>
-  </section>
-</div>
-
-<!-- Drawer (right) -->
-<aside id="drawer" class="drawer" aria-hidden="true">
-  <div class="drawer-head">
-    <div class="title">Image History <span class="helper">(max 20)</span></div>
-    <div class="sp"></div>
-    <button id="btnClearHist" class="btn light">Clear history</button>
-    <button id="btnCloseDrawer" class="btn danger">Close</button>
+    </header>
+    <div class="body"><div id="hist" class="hist"></div></div>
   </div>
-  <div id="histBody" class="drawer-body"></div>
-  <div class="drawer-foot">
-    <button id="btnOrderFromCanvas" class="btn warn">Order current</button>
-  </div>
-</aside>
 
-<!-- Enlarge modal -->
-<div id="modal" class="modal"><div class="box"><img id="modalImg" alt="preview" /></div></div>
+  <!-- Modal Enlarge -->
+  <dialog id="dlg" style="border:none;border-radius:14px;padding:0;background:#0b1220;color:#e5e7eb;max-width:92vw">
+    <div style="position:relative">
+      <button id="dlgClose" style="position:absolute;top:6px;right:6px;background:#0b1226;border:1px solid var(--ring);color:#e5e7eb;border-radius:10px;padding:6px 10px;cursor:pointer">✕</button>
+      <img id="dlgImg" alt="preview" style="max-width:100vw;max-height:80vh;display:block;border-radius:14px" />
+    </div>
+  </dialog>
 
-<script>
-(() => {
-  // ====== CONFIG ======
-  const PROXY_BASE = "https://novaai-backend-v2.onrender.com";
-  const NVAI_KEY = "novaai:selectedProduct";        // sessionStorage key set by products.html
-  const HIST_KEY = "novaai:history";                // localStorage history
+  <script>
+  // ===== Config =====
+  const PROXY = '/proxy.php';
+  const PROXY_HEALTH = PROXY + '?p=health';
+  const PROXY_GENERATE = PROXY + '?p=api/generate';
+  const HKEY='NN.novaai.hist24', DAY=24*60*60*1000, HMAX=60;
+  const $=(s,root=document)=>root.querySelector(s);
 
-  // ====== DOM ======
-  const proxyState = document.getElementById("proxyState");
-  const chipBox = document.getElementById("chipBox");
-  const fileUp = document.getElementById("fileUp");
-  const fontSel = document.getElementById("fontSel");
-  const promptBox = document.getElementById("promptBox");
-  const btnCatalog = document.getElementById("btnCatalog");
-  const btnGenerate = document.getElementById("btnGenerate");
-  const btnDrawer = document.getElementById("btnDrawer");
-  const btnClear = document.getElementById("btnClear");
-  const stage = document.getElementById("stage");
-  const statusEl = document.getElementById("status");
-  const drawer = document.getElementById("drawer");
-  const histBody = document.getElementById("histBody");
-  const btnClearHist = document.getElementById("btnClearHist");
-  const btnCloseDrawer = document.getElementById("btnCloseDrawer");
-  const btnOrderFromCanvas = document.getElementById("btnOrderFromCanvas");
-  const modal = document.getElementById("modal");
-  const modalImg = document.getElementById("modalImg");
+  // ===== Utils =====
+  function fileToDataURL(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(file);});}
+  async function urlToDataURL(url){try{const r=await fetch(url,{cache:'no-store'});const ct=r.headers.get('content-type')||'';if(!r.ok||!ct.startsWith('image/'))throw 0;const b=await r.blob();return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(b);});}catch{return null;}}
+  async function fetchJSON(url, init){try{const r=await fetch(url,init);const t=await r.text();let j=null;try{j=JSON.parse(t);}catch{};return{ok:r.ok,status:r.status,json:j,text:t};}catch(e){return{ok:false,status:0,json:null,text:String(e)}}}
+  function readHist(){try{return JSON.parse(localStorage.getItem(HKEY))||[]}catch{return []}}
+  function saveHist(a){localStorage.setItem(HKEY, JSON.stringify(a));}
+  function purge24(a){const now=Date.now();return(a||[]).filter(x=>now-(x.ts||0)<=DAY);}
+  function addHist(url){if(!url)return;let a=purge24(readHist());a.unshift({id:crypto.randomUUID(),url,ts:Date.now()});if(a.length>HMAX)a=a.slice(0,HMAX);saveHist(a);renderHist();}
+  function shorten(u){if(!u)return'';try{const x=new URL(u,location.href);return(x.origin.replace(/^https?:\/\//,'')+x.pathname).slice(0,60);}catch{return(u||'').slice(0,60);}}
+  async function compressDataURL(dataURL,maxW=1600,maxH=1600,quality=0.9){try{if(!/^data:image\//i.test(dataURL))return dataURL;const img=new Image();img.src=dataURL;await img.decode();let w=img.naturalWidth,h=img.naturalHeight,r=Math.min(maxW/w,maxH/h,1);const c=document.createElement('canvas');c.width=Math.round(w*r);c.height=Math.round(h*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);const isPng=dataURL.startsWith('data:image/png');const out=c.toDataURL(isPng?'image/png':'image/jpeg',quality);return out.length<dataURL.length?out:dataURL;}catch{return dataURL;}}
 
-  // ====== STATE ======
-  let currentChip = null; // { id,name,ref,imageResolved,prompt,... } from products
-  let currentImage = null; // dataURL of last generated
-
-  // ====== Helpers ======
-  const escapeHTML = (s)=> (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-  const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
-  const readAsDataURL = (file)=> new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
-
-  function setStatus(t){ statusEl.textContent = t||""; }
-  function setStageLoading(on){
-    stage.innerHTML = on ? '<div class="helper">Generating…</div>' : '<div class="helper">No image yet.</div>';
-  }
-  function showImage(dataURL){
-    currentImage = dataURL;
-    stage.innerHTML = "";
-    const img = new Image();
-    img.alt = "Generated image";
-    img.src = dataURL;
-    stage.appendChild(img);
+  // Historial seguro (evita romper por dataURL gigante)
+  function safeAddHist(url){
+    try{
+      if (/^data:image\//i.test(url) && url.length > 2_000_000) {
+        (async()=>{ try{ const tiny=await compressDataURL(url,600,600,0.65); addHist(tiny); }catch{} })();
+        return;
+      }
+      addHist(url);
+    }catch{}
   }
 
-  // History
-  function loadHistory(){
-    try{ return JSON.parse(localStorage.getItem(HIST_KEY)||"[]"); }catch{ return []; }
+  // === Saneo de URL de referencia ===
+  function normalizeRefUrl(u){
+    if (!u || typeof u !== 'string') return '';
+    if (u === 'null' || u === 'undefined') return '';
+    if (u.startsWith('blob:')) return '';               // no usable fuera de su página
+    if (/^https?:\/\//i.test(u)) return u;
+    if (/^data:image\//i.test(u)) return u;
+    return '';
   }
-  function saveHistory(arr){
-    try{ localStorage.setItem(HIST_KEY, JSON.stringify(arr.slice(0,20))); }catch{}
-  }
-  function pushHistory(dataURL){
-    const now = Date.now();
-    const arr = loadHistory();
-    arr.unshift({id:"h_"+now, ts:now, img:dataURL});
-    saveHistory(arr);
-  }
-  function renderHistory(){
-    const arr = loadHistory();
-    histBody.innerHTML = "";
-    arr.forEach(item=>{
-      const card = document.createElement("div");
-      card.className = "thumb";
-      const img = new Image();
-      img.src = item.img;
-      img.alt = "history item";
-      card.appendChild(img);
 
-      const act = document.createElement("div");
-      act.className = "act";
-      const b1 = document.createElement("button");
-      b1.className = "btn light";
-      b1.textContent = "Enlarge";
-      b1.onclick = ()=>{ modalImg.src=item.img; modal.classList.add("on"); };
-      const b2 = document.createElement("button");
-      b2.className = "btn warn";
-      b2.textContent = "Order";
-      b2.onclick = ()=> gotoOrder(item.img);
-      act.append(b1,b2);
-      card.appendChild(act);
+  // ===== Incoming (soporta ref_data base64 desde Products) =====
+  const qs = new URLSearchParams(location.search);
+  let incoming=null; try{ incoming = JSON.parse(sessionStorage.getItem('novaai_incoming')||'null'); }catch{}
+  if(!incoming){
+    const qRef = qs.get('ref') || qs.get('img') || '';
+    incoming = { id:qs.get('id')||'', name:qs.get('name')||'', ref:qRef, ref_data:'' };
+  }
+  incoming.ref = normalizeRefUrl(incoming.ref);
+  if (incoming.ref_data && !/^data:image\//i.test(incoming.ref_data)) incoming.ref_data = '';
 
-      histBody.appendChild(card);
+  // ===== UI Refs =====
+  const chip=$('#chip'), chipMeta=$('#chipMeta'), promptBox=$('#prompt'), upload=$('#upload'), fontSel=$('#font');
+  const result=$('#result'), msg=$('#msg'), health=$('#health');
+  const btnGen=$('#btnGen'), openCatalog=$('#openCatalog'), pasteUrl=$('#pasteUrl'), btnClear=$('#btnClear');
+  const btnOrder=$('#btnOrder'), slide=$('#slide'), hist=$('#hist'), purgeBtn=$('#purge'), closeSlide=$('#closeSlide');
+  const dlg=document.getElementById('dlg'), dlgImg=document.getElementById('dlgImg'), dlgClose=document.getElementById('dlgClose');
+  const lockShape=document.getElementById('lockShape');
+
+  // ===== Chip render =====
+  async function renderChip(){
+    chip.innerHTML='';
+    const preview = incoming.ref_data || incoming.ref || '';
+    if(!preview){
+      const em=document.createElement('div'); em.className='chip-empty';
+      em.textContent='No product selected (use Open Catalog or Paste URL)';
+      chip.appendChild(em); if(chipMeta) chipMeta.textContent=''; return;
+    }
+    const pill=document.createElement('span'); pill.className='chip';
+    const im=new Image(); im.src=preview; im.className='thumb'; im.alt='chip';
+    const label=document.createElement('span'); label.className='label'; label.textContent=incoming.name||incoming.id||'Selected';
+    const x=document.createElement('button'); x.className='x'; x.textContent='Clear'; x.onclick=()=>{ incoming={}; renderChip(); };
+    pill.append(im,label,x); chip.append(pill);
+    if(chipMeta) chipMeta.textContent = incoming.ref ? shorten(incoming.ref) : '(base64)';
+  }
+
+  // ===== Historial =====
+  function renderHist(){
+    const a=purge24(readHist()); saveHist(a);
+    hist.innerHTML='';
+    a.forEach(it=>{
+      const row=document.createElement('div'); row.className='card';
+      row.innerHTML = `
+        <img src="${it.url}" alt="hist">
+        <div>
+          <div class="tiny">${new Date(it.ts).toLocaleString()}</div>
+          <div class="row" style="margin-top:6px">
+            <button class="btn ghost" data-act="enlarge" data-id="${it.id}">Enlarge</button>
+            <button class="btn order" data-act="order" data-id="${it.id}">Order</button>
+          </div>
+        </div>`;
+      hist.appendChild(row);
     });
   }
+  hist.addEventListener('click',(e)=>{
+    const b=e.target.closest('button[data-act]'); if(!b) return;
+    const a=readHist(); const rec=a.find(x=>x.id===b.dataset.id); if(!rec) return;
+    if(b.dataset.act==='enlarge'){ dlgImg.src=rec.url; dlg.showModal(); }
+    if(b.dataset.act==='order'){ location.href='orders.html?img='+encodeURIComponent(rec.url); }
+  });
 
-  // Chip UI
-  const FALLBACK = 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="100%" height="100%" fill="#0b0e13"/><text x="50%" y="50%" fill="#8894a6" font-family="system-ui" font-size="12" dominant-baseline="middle" text-anchor="middle">no image</text></svg>`);
-  function renderChip(){
-    chipBox.innerHTML = "";
-    if(!currentChip){
-      const info = document.createElement("div");
-      info.className = "helper";
-      info.textContent = "You can remove the product chip to work only with your upload and text.";
-      chipBox.appendChild(info);
+  // ===== Botones =====
+  openCatalog.onclick = ()=> location.href='products.html';
+  pasteUrl.onclick = async ()=>{
+    const u = prompt('Paste image URL'); if(!u) return;
+    incoming.ref = normalizeRefUrl(u.trim()); incoming.ref_data = ''; renderChip();
+  };
+  btnClear.onclick = ()=>{
+    promptBox.value=''; if(upload) upload.value='';
+    result.innerHTML='<div class="helper">No image yet.</div>'; msg.textContent='Cleared.';
+  };
+  btnOrder.onclick = ()=>{ slide.classList.add('open'); slide.setAttribute('aria-hidden','false'); };
+  closeSlide.onclick = ()=>{ slide.classList.remove('open'); slide.setAttribute('aria-hidden','true'); };
+  purgeBtn.onclick = ()=>{ localStorage.removeItem(HKEY); renderHist(); };
+  upload.onchange = async (e)=>{
+    const f=e.target.files?.[0]; if(!f) return;
+    incoming.ref_data = await fileToDataURL(f); incoming.ref=''; renderChip();
+  };
+  dlgClose.onclick = ()=> dlg.close();
+  dlg.addEventListener('click', (ev)=>{
+    const r=dlg.getBoundingClientRect();
+    if(!(ev.clientX>r.left && ev.clientX<r.right && ev.clientY>r.top && ev.clientY<r.bottom)) dlg.close();
+  });
+
+  // ===== Generate =====
+  btnGen.onclick = async ()=>{
+    result.innerHTML='<div class="helper">Generating...</div>'; msg.textContent='';
+
+    // 1) Resolver referencia (prioriza ref_data para fidelidad como Upload)
+    let refValue='';
+    try{
+      if(incoming.ref_data){
+        refValue = await compressDataURL(incoming.ref_data);
+      }else if(upload.files?.[0]){
+        refValue = await fileToDataURL(upload.files[0]);
+        refValue = await compressDataURL(refValue);
+      }else if(incoming.ref){
+        if (/^data:image\//i.test(incoming.ref)) {
+          refValue = await compressDataURL(incoming.ref);
+        } else { // https
+          const as64 = await urlToDataURL(incoming.ref);
+          refValue = as64 ? await compressDataURL(as64) : incoming.ref;
+        }
+      }
+    }catch{}
+
+    if(!refValue){
+      result.innerHTML='<div class="helper">Choose a product or upload a file.</div>';
+      msg.textContent='No ref'; return;
+    }
+
+    const raw=(promptBox.value||'').trim();
+    const faithful = raw.length===0;
+
+    // 2) IMITACIÓN EXACTA sin backend
+    if (faithful) {
+      result.innerHTML = `<img src="${refValue}" alt="result">`;
+      msg.textContent = '✅ Imitated (exact from reference)';
+      safeAddHist(refValue);
       return;
     }
-    const box = document.createElement("div");
-    box.className = "chip";
-    const im = new Image(); im.src = currentChip.imageResolved || currentChip.image || FALLBACK; im.alt = "product";
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    meta.innerHTML = `<div>${escapeHTML(currentChip.name||"Product")}</div><small>${escapeHTML(currentChip.category||"")}</small>`;
-    const clr = document.createElement("button");
-    clr.className = "btn light clear"; clr.textContent = "Clear chip";
-    clr.onclick = ()=>{ currentChip = null; sessionStorage.removeItem(NVAI_KEY); renderChip(); };
-    box.append(im, meta, clr);
-    chipBox.appendChild(box);
-  }
 
-  // Orders redirect
-  function gotoOrder(dataURL){
-    // pass image via sessionStorage (safer than query string)
-    try{ sessionStorage.setItem("order:image", dataURL); }catch{}
-    location.href = "orders.html";
-  }
+    // 3) Edición precisa (solo figura/texto; conservar forma/fondo)
+    const fidelity = !!(lockShape && lockShape.checked);
+    const editPrompt =
+`Modify ONLY what is explicitly requested.
+Keep the SAME background, composition, camera, palette, lighting and materials as the reference.
+Keep the SAME camera distance and object proportions; preserve silhouette and layout exactly.
+Write EXACTLY the provided text (case-sensitive, no synonyms, no extra words). Do NOT change fonts unless specified.
+Changes: """${raw}"""`;
 
-  // Proxy health
-  async function checkProxy(){
-    try{
-      const r = await fetch(`${PROXY_BASE}/api/health`, {cache:"no-store"});
-      const j = await r.json();
-      proxyState.textContent = `Proxy: OK (${j.engine.split(":")[0]})`;
-      proxyState.style.background = "#11231c";
-      proxyState.style.border = "1px solid #244b38";
-    }catch(e){
-      proxyState.textContent = "Proxy: FAIL";
-      proxyState.style.background = "#2a1516";
-      proxyState.style.border = "1px solid #5b2c2e";
+    const baseParams = fidelity
+      ? { image_guidance_scale: 1.35, strength: 0.04, keep_background: true, preserve_subject: true, preserve_layout: true, mode: 'edit-figure-text' }
+      : { image_guidance_scale: 0.9,  strength: 0.25, keep_background: true, preserve_subject: true, mode: 'edit-figure-text' };
+
+    const negative = 'no layout change, no new objects, no background change, no color swap, no style change, no camera move, no crop, no font change unless specified';
+
+    const payload = { ref: refValue, prompt: editPrompt, negative, ...baseParams };
+
+    const {ok,status,json,text} = await fetchJSON(PROXY + '?p=api/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+
+    if(!ok){
+      result.innerHTML='<div class="helper">Failed.</div>';
+      msg.textContent=`Error ${status}\n${text?.slice(0,500)||''}`;
+      return;
     }
-  }
 
-  // ====== Actions ======
-  btnCatalog.onclick = ()=>{ location.href = "products.html"; };
-
-  btnDrawer.onclick = ()=>{ renderHistory(); drawer.classList.add("on"); };
-  btnCloseDrawer.onclick = ()=> drawer.classList.remove("on");
-  btnClearHist.onclick = ()=>{ if(confirm("Clear image history?")){ localStorage.removeItem(HIST_KEY); renderHistory(); } };
-  btnOrderFromCanvas.onclick = ()=>{ if(!currentImage) return alert("Generate an image first."); gotoOrder(currentImage); };
-
-  btnClear.onclick = ()=>{
-    currentImage = null;
-    stage.innerHTML = '<div class="helper">No image yet.</div>';
-    setStatus("");
-    fileUp.value = "";
+    const url = json?.customer || json?.owner || json?.image || '';
+    if(url){ result.innerHTML=`<img src="${url}" alt="result">`; msg.textContent='✅ Edited'; safeAddHist(url); }
+    else { result.innerHTML='<div class="helper">No image in response.</div>'; msg.textContent='Empty response'; }
   };
 
-  modal.addEventListener("click",(e)=>{ if(e.target===modal) modal.classList.remove("on"); });
-
-  btnGenerate.onclick = async ()=>{
-    try{
-      btnGenerate.disabled = true;
-      setStageLoading(true);
-      setStatus("Preparing…");
-
-      // Build ref priority: upload > chip.image
-      let refData = "";
-      if(fileUp.files && fileUp.files[0]){
-        refData = await readAsDataURL(fileUp.files[0]); // dataURL
-      }else if(currentChip && (currentChip.imageResolved || currentChip.image)){
-        // backend can fetch https or accept dataURL; we pass the best available
-        refData = currentChip.imageResolved || currentChip.image;
-      }
-
-      // negatives & guided
-      const NEGATIVES = [
-        "no background changes",
-        "no layout changes",
-        "no composition changes",
-        "no extra objects",
-        "no new elements",
-        "no 3D volume",
-        "no gradients",
-        "no realistic materials",
-        "keep same lighting",
-        "keep same line weights",
-        "no style drift"
-      ].join(", ");
-
-      // Prompt: if user prompt empty and there is a reference => faithful imitation
-      const user = (promptBox.value||"").trim();
-      const fontName = (fontSel.value||"DM Sans").trim();
-
-      // Strength: lower means more faithful
-      const strength = refData && !user ? 0.18 : 0.35;
-      const steps = refData ? 28 : 24;
-
-      const form = new FormData();
-      if(fileUp.files && fileUp.files[0]){
-        form.append("file", fileUp.files[0]); // upload gets priority server-side
-      }else if(refData){
-        form.append("ref", refData);
-      }
-      form.append("prompt", user);
-      form.append("font", fontName);
-      form.append("negative", NEGATIVES);
-      form.append("strength", String(strength));
-      form.append("steps", String(steps));
-
-      setStatus("Calling backend…");
-      const t0 = Date.now();
-      const resp = await fetch(`${PROXY_BASE}/api/generate`, { method:"POST", body:form });
-      if(!resp.ok){
-        const txt = await resp.text();
-        throw new Error(`Proxy error ${resp.status}: ${txt}`);
-      }
-      const data = await resp.json();
-      if(!data.ok || !data.image) throw new Error(data.msg || "No image returned.");
-      const ms = Date.now()-t0;
-      setStatus(`Done in ${(ms/1000).toFixed(1)}s • engine ${data.used||"replicate"}`);
-
-      showImage(data.image);
-      pushHistory(data.image);
-    }catch(err){
-      console.error(err);
-      setStageLoading(false);
-      alert("Generation failed. " + (err?.message||err));
-      setStatus("Error.");
-    }finally{
-      btnGenerate.disabled = false;
-    }
-  };
-
-  // ====== Init ======
-  (function init(){
-    // pick product from session (products.html -> novaai)
-    try{
-      const raw = sessionStorage.getItem(NVAI_KEY);
-      if(raw){ currentChip = JSON.parse(raw); }
-    }catch{}
+  // ===== Primer render + Health =====
+  (async()=>{
     renderChip();
-
-    // if coming back from products with ?product=…
-    try{
-      const q = new URLSearchParams(location.search);
-      if(q.has("product")){
-        const payload = JSON.parse(decodeURIComponent(atob(q.get("product"))));
-        currentChip = payload;
-        sessionStorage.setItem(NVAI_KEY, JSON.stringify(payload));
-        renderChip();
-      }
-    }catch{}
-
-    checkProxy();
-    renderHistory();
+    renderHist();
+    const h=await fetchJSON(PROXY_HEALTH,{method:'GET'});
+    document.getElementById('health').textContent = h.ok ? 'Proxy: OK' : ('Proxy: error '+h.status);
   })();
-})();
-</script>
+
+  // ===== Diagnóstico =====
+  window.addEventListener('error', (e)=>{ try{ document.getElementById('msg').textContent='⚠️ JS error: '+e.message; }catch{} });
+  </script>
 </body>
 </html>
